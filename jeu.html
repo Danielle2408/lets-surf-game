@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>🏄 Let's Surf - Édition Originale</title>
+    <link rel="stylesheet" href="jeu.css">
+</head>
+<body>
+<div class="game-container">
+    <canvas id="gameCanvas" width="1000" height="600"></canvas>
+    <div class="info-panel">
+        <div class="score-box"><span>🏄 DISTANCE</span> <span id="distanceValue">0</span><span> m</span></div>
+        <div class="score-box"><span>❤️ VIES</span> <span id="livesValue">3</span></div>
+        <div class="speed-box"><span>🌊 VITESSE</span> <span id="speedValue">3</span></div>
+        <button id="restartButton">🏄‍♂️ NOUVELLE VAGUE</button>
+    </div>
+    <div class="controls-hint">
+        🎮 ← → Haut Bas : Déplacement | 🌀 Ctrl/Shift : Tournade (Boost) | 🌟 Évite REQUINS & SURFEURS | ⭐ Attrape ÉTOILES & CŒURS
+    </div>
+</div>
+<script src="jeu.js"></script>
+</body>
+</html>
