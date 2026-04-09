@@ -11,12 +11,13 @@
     <canvas id="gameCanvas" width="1000" height="600"></canvas>
     <div class="info-panel">
         <div class="score-box"><span>🏄 DISTANCE</span> <span id="distanceValue">0</span><span> m</span></div>
-        <div class="score-box"><span>❤️ VIES</span> <span id="livesValue">3</span></div>
+        <div class="lives-box" id="livesBox"></div>
         <div class="speed-box"><span>🌊 VITESSE</span> <span id="speedValue">3</span></div>
+        <button id="pauseButton">⏸ PAUSE</button>
         <button id="restartButton">🏄‍♂️ NOUVELLE VAGUE</button>
     </div>
     <div class="controls-hint">
-        🎮 ← → Haut Bas : Déplacement | 🌀 Ctrl/Shift : Tournade (Boost) | 🌟 Évite REQUINS & SURFEURS | ⭐ Attrape ÉTOILES & CŒURS
+        🎮 ← → Haut Bas : Déplacement | 🌀 Ctrl/Shift : Tournade (Boost) | ⏸ P : Pause | 🌟 Évite REQUINS & SURFEURS | ⭐ Attrape ÉTOILES & CŒURS
     </div>
 </div>
 <script src="jeu.js"></script>

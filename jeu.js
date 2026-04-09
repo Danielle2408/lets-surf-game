@@ -53,27 +53,71 @@
     // High score
     let highDistance = localStorage.getItem('surfHighDist') ? parseInt(localStorage.getItem('surfHighDist')) : 0;
     
+    // Pause
+    let gamePaused = false;
+    
     // UI
-    const distanceSpan = document.getElementById('distanceValue');
-    const livesSpan = document.getElementById('livesValue');
-    const speedSpan = document.getElementById('speedValue');
     const restartBtn = document.getElementById('restartButton');
+    const pauseBtn = document.getElementById('pauseButton');
     
-    // ---------- FONCTIONS UTILES ----------
-    function updateUI() {
-        distanceSpan.innerText = Math.floor(distance);
-        livesSpan.innerText = lives;
-        let displaySpeed = boostActive ? currentSpeed * 1.8 : currentSpeed;
-        speedSpan.innerText = displaySpeed.toFixed(1);
+    // Variables UI (cachées une fois pour performance)
+    const elDistance = document.getElementById('distanceValue');
+    const elLivesBox = document.getElementById('livesBox');
+    const elSpeed    = document.getElementById('speedValue');
+
+    // Construit les 5 cœurs une fois au départ
+    function buildHearts() {
+        elLivesBox.innerHTML = '';
+        for (let i = 0; i < 5; i++) {
+            const h = document.createElement('span');
+            h.className = 'heart';
+            h.textContent = i < lives ? '❤️' : '🖤';
+            elLivesBox.appendChild(h);
+        }
     }
-    
+
+    // Met à jour l'affichage de chaque cœur selon `lives`
+    function refreshHearts() {
+        const hearts = elLivesBox.querySelectorAll('.heart');
+        hearts.forEach((h, i) => {
+            h.textContent = i < lives ? '❤️' : '🖤';
+        });
+    }
+
+    function animateLostHeart() {
+        refreshHearts();
+        const hearts = elLivesBox.querySelectorAll('.heart');
+        const target = hearts[lives]; // le cœur qui vient de passer à '🖤'
+        if (target) {
+            target.style.animation = 'none';
+            target.offsetHeight; // reflow
+            target.style.animation = 'heartLost 0.5s ease forwards';
+        }
+    }
+
+    function animateGainHeart() {
+        refreshHearts();
+        const hearts = elLivesBox.querySelectorAll('.heart');
+        const target = hearts[lives - 1]; // le cœur qui vient de passer à '❤️'
+        if (target) {
+            target.style.animation = 'none';
+            target.offsetHeight;
+            target.style.animation = 'heartPulse 0.4s ease';
+        }
+    }
+
+    function updateUI() {
+        elDistance.textContent = Math.floor(distance);
+        elSpeed.textContent = (boostActive ? currentSpeed * 1.8 : currentSpeed).toFixed(1);
+    }
+
     function addDistance(meters) {
         distance += meters;
-        if(Math.floor(distance) > highDistance) {
+        if (Math.floor(distance) > highDistance) {
             highDistance = Math.floor(distance);
             localStorage.setItem('surfHighDist', highDistance);
         }
-        updateUI();
+        elDistance.textContent = Math.floor(distance);
     }
     
     function addParticles(x, y, color, count=8) {
@@ -101,7 +145,7 @@
     
     function loseLife() {
         lives--;
-        updateUI();
+        animateLostHeart();
         addParticles(surfer.x+SURFER_W/2, surfer.y+SURFER_H/2, '#FF6666', 15);
         if(lives <= 0) {
             gameRunning = false;
@@ -217,7 +261,7 @@
     
     // ---------- MISE À JOUR ----------
     function updateGame() {
-        if(!gameRunning) return;
+        if(!gameRunning || gamePaused) return;
         
         // Mouvement du surfeur
         if(leftPressed && surfer.x > 20) surfer.x -= MOVE_STEP;
@@ -237,7 +281,7 @@
         
         addDistance(0.12 * currentSpeed);
         updateSpeed();
-        waveOffset = (waveOffset + currentSpeed * 0.6) % (Math.PI * 2);
+        waveOffset = (waveOffset + currentSpeed * 0.15) % (Math.PI * 2);
         
         // Mise à jour des requins (avec animation)
         for(let i=0; i<obstacles.length; i++) {
@@ -294,8 +338,8 @@
                     addParticles(p.x+p.w/2, p.y+p.h/2, '#FFD700', 12);
                 } else if(p.type === 'heart') {
                     lives = Math.min(lives + 1, 5);
+                    animateGainHeart();
                     addParticles(p.x+p.w/2, p.y+p.h/2, '#FF69B4', 12);
-                    updateUI();
                 }
                 powerups.splice(i,1);
                 i--;
@@ -349,7 +393,7 @@
         
         ctx.beginPath();
         for(let x=0; x<=W; x+=20) {
-            let y = H*0.6 + 15 + Math.sin(x*0.02 + waveOffset)*waveAmplitude + Math.sin(x*0.008 + waveOffset*1.5)*5;
+            let y = H*0.6 + 15 + Math.sin(x*0.015 + waveOffset)*4 + Math.sin(x*0.006 + waveOffset*0.7)*2;
             if(x===0) ctx.moveTo(x,y);
             else ctx.lineTo(x,y);
         }
@@ -360,9 +404,9 @@
         
         ctx.beginPath();
         for(let x=0; x<=W; x+=15) {
-            let y = H*0.6 + 10 + Math.sin(x*0.025 + waveOffset+1)*7;
+            let y = H*0.6 + 10 + Math.sin(x*0.018 + waveOffset+1)*2.5;
             ctx.moveTo(x,y);
-            ctx.lineTo(x+5,y-3);
+            ctx.lineTo(x+5,y-2);
         }
         ctx.strokeStyle = '#FFFFFFAA';
         ctx.lineWidth = 2;
@@ -546,19 +590,65 @@
         ctx.globalAlpha = 1;
     }
     
+    function drawPause() {
+        ctx.fillStyle = 'rgba(0, 10, 30, 0.75)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.font = 'bold 52px "Segoe UI"';
+        ctx.fillStyle = '#FFD966';
+        ctx.textAlign = 'center';
+        ctx.fillText("⏸ PAUSE", W/2, H/2 - 30);
+        ctx.font = '22px sans-serif';
+        ctx.fillStyle = '#C1E4FF';
+        ctx.fillText("Appuie sur P pour reprendre", W/2, H/2 + 30);
+        ctx.textAlign = 'left';
+    }
+
+    // Zone cliquable du bouton Rejouer sur le canvas
+    let replayBtnRect = null;
+
     function drawGameOver() {
         ctx.fillStyle = 'rgba(0,0,0,0.8)';
         ctx.fillRect(0,0,W,H);
+        ctx.textAlign = 'center';
         ctx.font = 'bold 46px "Segoe UI"';
         ctx.fillStyle = '#FFC857';
-        ctx.fillText("🏁 GAME OVER", W/2-150, H/2-60);
+        ctx.fillText("🏁 GAME OVER", W/2, H/2 - 80);
         ctx.font = '28px monospace';
         ctx.fillStyle = 'white';
-        ctx.fillText("Distance: "+Math.floor(distance)+" m", W/2-100, H/2+10);
-        ctx.fillText("Record: "+highDistance+" m", W/2-80, H/2+60);
-        ctx.font = '18px sans-serif';
-        ctx.fillStyle = '#DDD';
-        ctx.fillText("Clique sur NOUVELLE VAGUE", W/2-120, H/2+120);
+        ctx.fillText("Distance: "+Math.floor(distance)+" m", W/2, H/2 - 20);
+        ctx.fillText("Record: "+highDistance+" m", W/2, H/2 + 30);
+
+        // Bouton Rejouer sur le canvas
+        const btnW = 240, btnH = 54;
+        const btnX = W/2 - btnW/2;
+        const btnY = H/2 + 70;
+        replayBtnRect = { x: btnX, y: btnY, w: btnW, h: btnH };
+
+        ctx.fillStyle = '#ff9f2e';
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = '#ff9f2e55';
+        roundRect(ctx, btnX, btnY, btnW, btnH, 30);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.font = 'bold 22px "Segoe UI"';
+        ctx.fillStyle = '#1e2f3a';
+        ctx.fillText("🏄‍♂️ REJOUER", W/2, btnY + 36);
+        ctx.textAlign = 'left';
+    }
+
+    function roundRect(ctx, x, y, w, h, r) {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
     }
     
     function draw() {
@@ -585,6 +675,7 @@
         ctx.fillText("Ctrl/Shift = Boost", 20, 75);
         
         if(!gameRunning) drawGameOver();
+        if(gamePaused && gameRunning) drawPause();
     }
     
     // ---------- BOUCLE PRINCIPALE ----------
@@ -602,6 +693,7 @@
         else if(e.key === 'ArrowDown') { downPressed = true; e.preventDefault(); }
         else if(e.key === 'Control' || e.key === 'Shift') { activateBoost(); e.preventDefault(); }
         else if(e.key === 'r' || e.key === 'R') { resetGame(); e.preventDefault(); }
+        else if(e.key === 'p' || e.key === 'P') { togglePause(); e.preventDefault(); }
     });
     window.addEventListener('keyup', (e) => {
         if(e.key === 'ArrowLeft') leftPressed = false;
@@ -636,6 +728,24 @@
     });
     canvas.addEventListener('touchend', () => { touchX = null; touchY = null; });
     
+    function togglePause() {
+        if(!gameRunning) return;
+        gamePaused = !gamePaused;
+        pauseBtn.textContent = gamePaused ? '▶ REPRENDRE' : '⏸ PAUSE';
+    }
+
+    canvas.addEventListener('click', (e) => {
+        if(gameRunning) return;
+        if(!replayBtnRect) return;
+        const rect = canvas.getBoundingClientRect();
+        const mx = (e.clientX - rect.left) * (W / rect.width);
+        const my = (e.clientY - rect.top) * (H / rect.height);
+        const b = replayBtnRect;
+        if(mx >= b.x && mx <= b.x + b.w && my >= b.y && my <= b.y + b.h) {
+            resetGame();
+        }
+    });
+
     function resetGame() {
         gameRunning = true;
         distance = 0;
@@ -649,14 +759,18 @@
         kraken.cooldown = 0;
         kraken.timer = 0;
         boostActive = false;
+        gamePaused = false;
+        pauseBtn.textContent = '⏸ PAUSE';
         surfer.x = W/2 - SURFER_W/2;
         surfer.y = H - 100;
         leftPressed = rightPressed = upPressed = downPressed = false;
         spawnCounter = 10;
+        buildHearts();
         updateUI();
     }
     
     restartBtn.addEventListener('click', resetGame);
+    pauseBtn.addEventListener('click', togglePause);
     resetGame();
     gameLoop();
 })();
