@@ -1,11 +1,11 @@
 (function(){
-    // ---------- CANVAS ----------
+   
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const W = 1000, H = 600;
     canvas.width = W; canvas.height = H;
 
-    // ---------- PARAMÈTRES JEU ----------
+   -
     let distance = 0;
     let lives = 3;
     let gameRunning = true;
@@ -13,53 +13,53 @@
     let currentSpeed = baseSpeed;
     let maxSpeed = 12;
     
-    // Surfeur (mouvement complet)
+    
     const SURFER_W = 36, SURFER_H = 36;
     let surfer = { x: W/2 - SURFER_W/2, y: H - 100, width: SURFER_W, height: SURFER_H };
     let leftPressed = false, rightPressed = false, upPressed = false, downPressed = false;
     const MOVE_STEP = 7;
     
-    // Éléments du jeu
-    let obstacles = [];      // requins
+  
+    let obstacles = [];    
     let otherSurfers = [];
     let powerups = [];
     
-    // Kraken cyclique
+   
     let kraken = { 
         active: false, 
         x: 0, y: 0, 
         targetX: 0, targetY: 0,
-        timer: 0,           // temps restant d'activité (frames)
-        cooldown: 0,        // temps avant prochaine apparition
+        timer: 0,           
+        cooldown: 0,        
         speed: 2.2
     };
     
-    // Vagues
+   
     let waveOffset = 0;
     let waveAmplitude = 10;
     
-    // Particules et effets
+ 
     let particles = [];
     
-    // Boost (tournade)
+ 
     let boostActive = false;
     let boostTimer = 0;
     let normalSpeed = baseSpeed;
     
-    // Spawn
+  
     let spawnCounter = 0;
     let spawnDelay = 45;
     
-    // High score
+   
     let highDistance = localStorage.getItem('surfHighDist') ? parseInt(localStorage.getItem('surfHighDist')) : 0;
     
-    // UI
+  
     const distanceSpan = document.getElementById('distanceValue');
     const livesSpan = document.getElementById('livesValue');
     const speedSpan = document.getElementById('speedValue');
     const restartBtn = document.getElementById('restartButton');
     
-    // ---------- FONCTIONS UTILES ----------
+  
     function updateUI() {
         distanceSpan.innerText = Math.floor(distance);
         livesSpan.innerText = lives;
@@ -123,7 +123,7 @@
                  r2.y > r1.y + r1.height || r2.y + r2.height < r1.y);
     }
     
-    // ---------- SPAWN ----------
+    
     function spawnObject() {
         if(!gameRunning) return;
         const rand = Math.random();
@@ -131,7 +131,7 @@
         const x = margin + Math.random() * (W - 80);
         const y = -50;
         
-        if(rand < 0.4) { // 40% requin (plus réaliste)
+        if(rand < 0.4) { 
             obstacles.push({
                 type: 'shark',
                 x: x, y: y, w: 48, h: 32,
@@ -140,14 +140,14 @@
                 angle: 0,
                 tailAngle: 0
             });
-        } else if(rand < 0.65) { // 25% autre surfeur
+        } else if(rand < 0.65) { 
             otherSurfers.push({
                 type: 'surfer',
                 x: x, y: y, w: 32, h: 32,
                 vx: (Math.random() - 0.5)*1.5,
                 vy: currentSpeed * (0.8 + Math.random()*0.6)
             });
-        } else { // 35% powerups
+        } else { 
             const typePow = Math.random() < 0.6 ? 'star' : 'heart';
             powerups.push({
                 type: typePow,
@@ -157,7 +157,7 @@
         }
     }
     
-    // Gestion du Kraken cyclique
+   
     function trySpawnKraken() {
         if(!gameRunning) return;
         if(kraken.active) return;
@@ -165,16 +165,16 @@
             kraken.cooldown--;
             return;
         }
-        // Distance minimale pour que le Kraken apparaisse (évite le début)
+       
         if(distance < 200) return;
-        // Probabilité d'apparition (toutes les 15-20 secondes en moyenne)
+        
         if(Math.random() < 0.008) {
             kraken.active = true;
             kraken.x = surfer.x - 120 + Math.random() * 240;
             kraken.y = surfer.y - 100;
             kraken.targetX = surfer.x;
             kraken.targetY = surfer.y;
-            kraken.timer = 300; // 5 secondes à 60fps
+            kraken.timer = 300; 
             addParticles(kraken.x+30, kraken.y+30, '#AA3366', 20);
         }
     }
@@ -182,16 +182,16 @@
     function updateKraken() {
         if(!kraken.active) return;
         
-        // Diminuer le timer
+        
         kraken.timer--;
         if(kraken.timer <= 0) {
             kraken.active = false;
-            kraken.cooldown = 450; // 7.5 secondes avant réapparition
+            kraken.cooldown = 450; 
             addParticles(kraken.x+30, kraken.y+30, '#AA3366', 25);
             return;
         }
         
-        // Poursuite du joueur
+       
         let dx = surfer.x + SURFER_W/2 - (kraken.x + 30);
         let dy = surfer.y + SURFER_H/2 - (kraken.y + 30);
         let dist = Math.hypot(dx, dy);
@@ -200,7 +200,7 @@
             kraken.y += (dy / dist) * kraken.speed;
         }
         
-        // Collision avec le surfeur
+       
         let krakenRect = { x: kraken.x, y: kraken.y, width: 60, height: 60 };
         let surferRect = { x: surfer.x, y: surfer.y, width: SURFER_W, height: SURFER_H };
         if(collide(krakenRect, surferRect)) {
@@ -210,22 +210,22 @@
             addParticles(kraken.x+30, kraken.y+30, '#FF4444', 30);
         }
         
-        // Empêcher le Kraken de sortir trop loin
+ 
         kraken.x = Math.max(-50, Math.min(W - 30, kraken.x));
         kraken.y = Math.max(-50, Math.min(H + 100, kraken.y));
     }
     
-    // ---------- MISE À JOUR ----------
+   
     function updateGame() {
         if(!gameRunning) return;
         
-        // Mouvement du surfeur
+        
         if(leftPressed && surfer.x > 20) surfer.x -= MOVE_STEP;
         if(rightPressed && surfer.x < W - SURFER_W - 20) surfer.x += MOVE_STEP;
         if(upPressed && surfer.y > 50) surfer.y -= MOVE_STEP;
         if(downPressed && surfer.y < H - SURFER_H - 30) surfer.y += MOVE_STEP;
         
-        // Gestion du boost
+      
         if(boostActive) {
             boostTimer--;
             if(boostTimer <= 0) {
@@ -239,17 +239,17 @@
         updateSpeed();
         waveOffset = (waveOffset + currentSpeed * 0.6) % (Math.PI * 2);
         
-        // Mise à jour des requins (avec animation)
+     
         for(let i=0; i<obstacles.length; i++) {
             let o = obstacles[i];
             o.y += o.vy;
             if(o.vx) o.x += o.vx;
             o.x = Math.max(10, Math.min(W - o.w - 10, o.x));
-            // Animation de la queue
+           
             o.tailAngle = (o.tailAngle || 0) + 0.2;
         }
         
-        // Mise à jour des autres surfeurs
+        
         for(let i=0; i<otherSurfers.length; i++) {
             let s = otherSurfers[i];
             s.y += s.vy;
@@ -257,13 +257,13 @@
             s.x = Math.max(15, Math.min(W - s.w - 15, s.x));
         }
         
-        // Mise à jour des powerups
+       
         for(let p of powerups) p.y += p.vy;
         
-        // Collisions
+       
         const surferRect = { x: surfer.x, y: surfer.y, width: SURFER_W, height: SURFER_H };
         
-        // Requins
+      
         for(let i=0; i<obstacles.length; i++) {
             const o = obstacles[i];
             if(collide(surferRect, { x: o.x, y: o.y, width: o.w, height: o.h })) {
@@ -274,7 +274,7 @@
             }
         }
         
-        // Autres surfeurs
+  
         for(let i=0; i<otherSurfers.length; i++) {
             const s = otherSurfers[i];
             if(collide(surferRect, { x: s.x, y: s.y, width: s.w, height: s.h })) {
@@ -285,7 +285,7 @@
             }
         }
         
-        // Powerups
+      
         for(let i=0; i<powerups.length; i++) {
             const p = powerups[i];
             if(collide(surferRect, { x: p.x, y: p.y, width: p.w, height: p.h })) {
@@ -302,12 +302,12 @@
             }
         }
         
-        // Nettoyage
+   
         obstacles = obstacles.filter(o => o.y + o.h < H + 100);
         otherSurfers = otherSurfers.filter(s => s.y + s.h < H + 100);
         powerups = powerups.filter(p => p.y + p.h < H + 100);
         
-        // Spawn
+       
         if(spawnCounter <= 0) {
             spawnObject();
             spawnDelay = Math.max(35, 75 - Math.floor(currentSpeed * 2.5));
@@ -316,11 +316,11 @@
             spawnCounter--;
         }
         
-        // Kraken cyclique
+      
         trySpawnKraken();
         updateKraken();
         
-        // Particules
+      
         for(let i=0; i<particles.length; i++) {
             particles[i].x += particles[i].vx;
             particles[i].y += particles[i].vy;
@@ -329,7 +329,7 @@
         }
     }
     
-    // ---------- DESSIN (requins réalistes, Kraken amélioré) ----------
+  
     function drawSea() {
         let gradSky = ctx.createLinearGradient(0,0,0,H*0.6);
         gradSky.addColorStop(0,'#87CEEB');
@@ -372,24 +372,24 @@
     function drawRealisticShark(x, y, w, h, tailAngle) {
         ctx.save();
         ctx.shadowBlur = 3;
-        // Corps principal
+       
         ctx.fillStyle = '#4C7A9E';
         ctx.beginPath();
         ctx.ellipse(x + w/2, y + h/2, w/2, h/2.5, 0, 0, Math.PI*2);
         ctx.fill();
-        // Ventre plus clair
+       
         ctx.fillStyle = '#A8CBE1';
         ctx.beginPath();
         ctx.ellipse(x + w/2, y + h/1.7, w/2.5, h/4, 0, 0, Math.PI*2);
         ctx.fill();
-        // Nageoire dorsale
+     
         ctx.fillStyle = '#3A6080';
         ctx.beginPath();
         ctx.moveTo(x + w*0.5, y - 8);
         ctx.lineTo(x + w*0.65, y + h*0.2);
         ctx.lineTo(x + w*0.35, y + h*0.2);
         ctx.fill();
-        // Nageoire caudale (queue) animée
+      
         let angle = tailAngle || 0;
         let tailOffset = Math.sin(angle) * 8;
         ctx.fillStyle = '#3A6080';
@@ -398,7 +398,7 @@
         ctx.lineTo(x + w + 15 + tailOffset, y + h/2 - 12);
         ctx.lineTo(x + w + 15 - tailOffset, y + h/2 + 12);
         ctx.fill();
-        // Œil
+        
         ctx.fillStyle = '#FFFFFF';
         ctx.beginPath();
         ctx.arc(x + w - 12, y + h*0.35, 5, 0, Math.PI*2);
@@ -411,7 +411,7 @@
         ctx.beginPath();
         ctx.arc(x + w - 14, y + h*0.31, 1, 0, Math.PI*2);
         ctx.fill();
-        // Branchies
+      
         ctx.strokeStyle = '#2A4A6A';
         ctx.lineWidth = 1.5;
         for(let i=0;i<3;i++) {
@@ -526,7 +526,7 @@
         ctx.beginPath();
         ctx.arc(x+18, y+18, 1.5, 0, Math.PI*2);
         ctx.fill();
-        // Barre de temps restant
+        
         if(kraken.active && kraken.timer > 0) {
             let percent = kraken.timer / 300;
             ctx.fillStyle = '#AA3366';
@@ -587,14 +587,14 @@
         if(!gameRunning) drawGameOver();
     }
     
-    // ---------- BOUCLE PRINCIPALE ----------
+    
     function gameLoop() {
         updateGame();
         draw();
         requestAnimationFrame(gameLoop);
     }
     
-    // ---------- CONTROLES ----------
+  
     window.addEventListener('keydown', (e) => {
         if(e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
         else if(e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
@@ -610,7 +610,7 @@
         if(e.key === 'ArrowDown') downPressed = false;
     });
     
-    // Tactile
+    
     let touchX = null, touchY = null;
     canvas.addEventListener('touchstart', (e) => {
         e.preventDefault();
