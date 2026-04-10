@@ -33,10 +33,202 @@
     <script src="resources/js/util.js"></script>
     <script src="resources/js/strings.js"></script>
     <link href="resources/css/interface.css" rel="stylesheet" media="all"/>
+    <style>
+      #title-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: #243A5E;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 10;
+        color: white;
+        font-family: system-ui, sans-serif;
+      }
+      #title-screen h1 {
+        font-size: 48px;
+        margin-bottom: 40px;
+      }
+      #title-screen button {
+        margin: 10px;
+        padding: 15px 30px;
+        font-size: 24px;
+        background: rgba(255,255,255,0.2);
+        border: 1px solid white;
+        color: white;
+        cursor: pointer;
+        border-radius: 5px;
+      }
+      #title-screen button:hover {
+        background: rgba(255,255,255,0.4);
+      }
+      #personalization-modal {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px;
+        z-index: 11;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      }
+      #personalization-modal h2 {
+        margin-bottom: 20px;
+      }
+      #personalization-modal label {
+        display: block;
+        margin: 10px 0 5px;
+      }
+      #personalization-modal select {
+        width: 100%;
+        padding: 5px;
+        margin-bottom: 20px;
+      }
+      #personalization-modal button {
+        margin: 5px;
+        padding: 10px 20px;
+        cursor: pointer;
+      }
+    </style>
   </head>
     <body>
+        <div id="title-screen">
+          <h1>GROUPE1</h1>
+          <button id="start-btn">Démarrer</button>
+          <button id="personalization-btn">Personnalisation</button>
+        </div>
+        <div id="personalization-modal">
+          <h2 id="modal-title">Personnalisation</h2>
+          <label id="lang-label">Langue:</label>
+          <select id="lang-select">
+            <option value="fr">Français</option>
+            <option value="en">English</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+          </select>
+          <label id="music-label">Musique:</label>
+          <select id="music-select">
+            <option value="none">Aucune</option>
+            <option value="music1">Musique 1</option>
+            <option value="music2">Musique 2</option>
+          </select>
+          <button id="save-btn">Sauvegarder</button>
+          <button id="close-btn">Fermer</button>
+        </div>
+        <audio id="music1" src="resources/audio/music1.mp3" loop preload="none"></audio>
+        <audio id="music2" src="resources/audio/music2.mp3" loop preload="none"></audio>
         <div id="hamburger-container"></div>
         <div id="modal-root"></div>
+        <script>
+          const translations = {
+            fr: {
+              start: 'Démarrer',
+              personalization: 'Personnalisation',
+              modalTitle: 'Personnalisation',
+              langLabel: 'Langue:',
+              musicLabel: 'Musique:',
+              save: 'Sauvegarder',
+              close: 'Fermer',
+              none: 'Aucune',
+              music1: 'Musique 1',
+              music2: 'Musique 2'
+            },
+            en: {
+              start: 'Start',
+              personalization: 'Personalization',
+              modalTitle: 'Personalization',
+              langLabel: 'Language:',
+              musicLabel: 'Music:',
+              save: 'Save',
+              close: 'Close',
+              none: 'None',
+              music1: 'Music 1',
+              music2: 'Music 2'
+            },
+            de: {
+              start: 'Starten',
+              personalization: 'Personalisierung',
+              modalTitle: 'Personalisierung',
+              langLabel: 'Sprache:',
+              musicLabel: 'Musik:',
+              save: 'Speichern',
+              close: 'Schließen',
+              none: 'Keine',
+              music1: 'Musik 1',
+              music2: 'Musik 2'
+            },
+            es: {
+              start: 'Iniciar',
+              personalization: 'Personalización',
+              modalTitle: 'Personalización',
+              langLabel: 'Idioma:',
+              musicLabel: 'Música:',
+              save: 'Guardar',
+              close: 'Cerrar',
+              none: 'Ninguna',
+              music1: 'Música 1',
+              music2: 'Música 2'
+            }
+          };
+
+          function updateTexts(lang) {
+            const t = translations[lang];
+            document.getElementById('start-btn').textContent = t.start;
+            document.getElementById('personalization-btn').textContent = t.personalization;
+            document.getElementById('modal-title').textContent = t.modalTitle;
+            document.getElementById('lang-label').textContent = t.langLabel;
+            document.getElementById('music-label').textContent = t.musicLabel;
+            document.getElementById('save-btn').textContent = t.save;
+            document.getElementById('close-btn').textContent = t.close;
+            document.querySelector('#music-select option[value="none"]').textContent = t.none;
+            document.querySelector('#music-select option[value="music1"]').textContent = t.music1;
+            document.querySelector('#music-select option[value="music2"]').textContent = t.music2;
+          }
+
+          document.getElementById('start-btn').addEventListener('click', function() {
+            document.getElementById('title-screen').style.display = 'none';
+          });
+
+          document.getElementById('personalization-btn').addEventListener('click', function() {
+            document.getElementById('personalization-modal').style.display = 'block';
+          });
+
+          document.getElementById('close-btn').addEventListener('click', function() {
+            document.getElementById('personalization-modal').style.display = 'none';
+          });
+
+          document.getElementById('save-btn').addEventListener('click', function() {
+            const lang = document.getElementById('lang-select').value;
+            document.documentElement.lang = lang;
+            localStorage.setItem('lang', lang);
+            updateTexts(lang);
+            const music = document.getElementById('music-select').value;
+            localStorage.setItem('music', music);
+            document.querySelectorAll('audio').forEach(a => a.pause());
+            if (music !== 'none') {
+              document.getElementById(music).play();
+            }
+            document.getElementById('personalization-modal').style.display = 'none';
+          });
+
+          window.addEventListener('load', function() {
+            const lang = localStorage.getItem('lang') || 'fr';
+            document.getElementById('lang-select').value = lang;
+            document.documentElement.lang = lang;
+            updateTexts(lang);
+            const music = localStorage.getItem('music') || 'none';
+            document.getElementById('music-select').value = music;
+            if (music !== 'none') {
+              document.getElementById(music).play();
+            }
+          });
+        </script>
         <script defer="defer" src="resources/js/lib_react.chunk.js"></script>
         <script defer="defer" src="resources/js/lib_common.chunk.js"></script>
         <script defer="defer" src="resources/js/surf.bundle.js"></script>
