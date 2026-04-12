@@ -4,53 +4,85 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>🏄 Edge Surf · Évolution Temporelle</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Exo+2:wght@400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="jeu.css">
 </head>
 <body>
 
-<!-- ÉCRAN DE GARDE : GROUPE 1 -->
+<!-- Particules de fond -->
+<div class="bg-bubbles" id="bgBubbles"></div>
+
+<!-- ÉCRAN DE GARDE -->
 <div id="splashScreen" class="screen">
-    <div class="card">
-        <h1>🏄 GROUPE 1</h1>
-        <p style="color:#ccddee; margin:10px 0">Edge Surf - Édition Temporelle</p>
-        <button id="startButton" class="btn">🌊 START</button>
+    <div class="card splash-card">
+        <div class="splash-logo">
+            <span class="logo-wave">🌊</span>
+            <h1>GROUPE 1</h1>
+            <div class="logo-sub">EDGE SURF · ÉDITION TEMPORELLE</div>
+        </div>
+        <div class="splash-deco"></div>
+        <button id="startButton" class="btn btn-glow">🌊 COMMENCER</button>
     </div>
 </div>
 
 <!-- MENU PRINCIPAL -->
 <div id="menuScreen" class="screen hidden">
     <div class="card">
-        <h2>🏝️ MENU SURF</h2>
-        <button id="playButton" class="btn">▶ JOUER</button>
-        <button id="helpButtonMenu" class="btn btn-secondary">❓ AIDE</button>
-        <button id="customButtonMenu" class="btn btn-secondary">🎨 PERSONNALISATION</button>
+        <div class="menu-title">
+            <span class="title-icon">🏄</span>
+            <h2>SURF MENU</h2>
+        </div>
+        <div class="menu-btns">
+            <button id="playButton" class="btn btn-glow">▶ JOUER</button>
+            <button id="helpButtonMenu" class="btn btn-secondary">❓ AIDE</button>
+            <button id="customButtonMenu" class="btn btn-secondary">🎨 PERSONNALISATION</button>
+        </div>
+        <div class="record-badge" id="menuRecord">🏆 Record : 0 m</div>
     </div>
 </div>
 
 <!-- ÉCRAN AIDE -->
 <div id="helpScreen" class="screen hidden">
-    <div class="card">
+    <div class="card card-wide">
         <h2>📖 COMMENT JOUER</h2>
-        <div style="text-align: left; color:#eef4ff;">
-            <p>🎮 <strong>Déplacements :</strong> ← → ↑ ↓ (flèches)</p>
-            <p>🌀 <strong>Boost :</strong> maintenir <kbd>Ctrl</kbd> ou <kbd>Shift</kbd></p>
-            <p>🌟 <strong>Objectif :</strong> Évite rochers & pieuvres.<br>⭐ = distance, ❤️ = vie.</p>
-            <p>⏱️ <strong>Événements chrono :</strong><br>
-            - Toutes les 10s : une pieuvre géante attaque !<br>
-            - À 30s : un requin lance des briques.<br>
-            - À 60s : un bateau tente de te renverser.</p>
+        <div class="help-grid">
+            <div class="help-item">
+                <span class="help-icon">🎮</span>
+                <div><strong>Déplacements</strong><br>← → ↑ ↓ (flèches clavier)</div>
+            </div>
+            <div class="help-item">
+                <span class="help-icon">🌀</span>
+                <div><strong>Boost</strong><br>Maintenir <kbd>Ctrl</kbd> ou <kbd>Shift</kbd></div>
+            </div>
+            <div class="help-item">
+                <span class="help-icon">⏸️</span>
+                <div><strong>Pause</strong><br>Touche <kbd>P</kbd> ou bouton PAUSE</div>
+            </div>
+            <div class="help-item">
+                <span class="help-icon">🪨</span>
+                <div><strong>Obstacles</strong><br>Rochers, pieuvres, méduses, mines, bouteilles</div>
+            </div>
+            <div class="help-item">
+                <span class="help-icon">⭐</span>
+                <div><strong>Bonus</strong><br>Étoile = +20m · Cœur = +1 vie</div>
+            </div>
+            <div class="help-item">
+                <span class="help-icon">⏰</span>
+                <div><strong>Événements chrono</strong><br>10s : pieuvre géante · 30s : requin · 60s : bateau</div>
+            </div>
         </div>
-        <button id="backFromHelp" class="btn btn-secondary">⬅ RETOUR MENU</button>
+        <button id="backFromHelp" class="btn btn-secondary">⬅ RETOUR</button>
     </div>
 </div>
 
 <!-- ÉCRAN PERSONNALISATION -->
 <div id="customScreen" class="screen hidden">
-    <div class="card">
+    <div class="card card-wide">
         <h2>🎛️ PERSONNALISATION</h2>
         <div class="options-group">
             <div class="option-row">
-                <label>🌐 LANGUE :</label>
+                <label>🌐 LANGUE</label>
                 <select id="langSelect">
                     <option value="fr">Français</option>
                     <option value="en">English</option>
@@ -59,7 +91,7 @@
                 </select>
             </div>
             <div class="option-row">
-                <label>🎨 COULEUR THÈME :</label>
+                <label>🎨 THÈME</label>
                 <select id="colorSelect">
                     <option value="noir">⚫ Noir / Ébène</option>
                     <option value="jaune">🟡 Jaune Solaire</option>
@@ -68,15 +100,26 @@
                 </select>
             </div>
             <div class="option-row">
-                <label>🎵 MUSIQUE (fichier) :</label>
+                <label>🎵 MUSIQUE</label>
                 <input type="file" id="musicFile" accept="audio/*">
             </div>
             <div class="option-row">
                 <button id="applyCustomBtn" class="btn">✅ APPLIQUER</button>
-                <button id="stopMusicBtn" class="btn-secondary">🔇 Couper musique</button>
+                <button id="stopMusicBtn" class="btn btn-secondary">🔇 Couper</button>
             </div>
         </div>
-        <button id="backFromCustom" class="btn btn-secondary">⬅ RETOUR MENU</button>
+        <button id="backFromCustom" class="btn btn-secondary">⬅ RETOUR</button>
+    </div>
+</div>
+
+<!-- OVERLAY PAUSE -->
+<div id="pauseOverlay" class="pause-overlay hidden">
+    <div class="pause-card">
+        <div class="pause-icon">⏸</div>
+        <h2>PAUSE</h2>
+        <p>Le jeu est en pause</p>
+        <button id="resumeButton" class="btn btn-glow">▶ REPRENDRE</button>
+        <button id="pauseMenuButton" class="btn btn-secondary">📋 MENU</button>
     </div>
 </div>
 
@@ -85,14 +128,33 @@
     <div class="game-container">
         <canvas id="gameCanvas" width="1000" height="600"></canvas>
         <div class="info-panel">
-            <div class="score-box"><span id="distLabel">🏄 DISTANCE</span> <span id="distanceValue">0</span><span> m</span></div>
-            <div class="score-box"><span id="livesLabel">❤️ VIES</span> <span id="livesValue">3</span></div>
-            <div class="speed-box"><span id="speedLabel">🌊 VITESSE</span> <span id="speedValue">3</span></div>
-            <div class="score-box"><span>⏱️ TEMPS</span> <span id="timerValue">0</span><span> s</span></div>
-            <button id="restartButton">🏄‍♂️ NOUVELLE VAGUE</button>
-            <button id="menuButton" class="btn-secondary">📋 MENU</button>
+            <div class="score-box">
+                <span class="score-label" id="distLabel">🏄 DISTANCE</span>
+                <span class="score-value" id="distanceValue">0</span>
+                <span class="score-unit">m</span>
+            </div>
+            <div class="score-box">
+                <span class="score-label" id="livesLabel">❤️ VIES</span>
+                <span class="score-value" id="livesValue">3</span>
+            </div>
+            <div class="score-box">
+                <span class="score-label" id="speedLabel">🌊 VITESSE</span>
+                <span class="score-value" id="speedValue">3</span>
+            </div>
+            <div class="score-box">
+                <span class="score-label">⏱️ TEMPS</span>
+                <span class="score-value" id="timerValue">0</span>
+                <span class="score-unit">s</span>
+            </div>
+            <div class="panel-btns">
+                <button id="pauseButton" class="btn btn-pause">⏸ PAUSE</button>
+                <button id="restartButton" class="btn">🔄 REJOUER</button>
+                <button id="menuButton" class="btn btn-secondary">📋 MENU</button>
+            </div>
         </div>
-        <div class="controls-hint" id="controlsHint">🎮 ← → ↑ ↓ | 🌀 Ctrl/Shift Boost | ⭐❤️ bonus | ⏰ Événements chrono</div>
+        <div class="controls-hint" id="controlsHint">
+            🎮 ← → ↑ ↓ &nbsp;|&nbsp; 🌀 Ctrl/Shift Boost &nbsp;|&nbsp; ⏸ P = Pause &nbsp;|&nbsp; ⭐❤️ bonus &nbsp;|&nbsp; ⏰ Événements chrono
+        </div>
     </div>
 </div>
 
