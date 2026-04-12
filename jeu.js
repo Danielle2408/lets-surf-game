@@ -1,6 +1,6 @@
 
 (function() {
-    // ---------- TRADUCTIONS ----------
+  
     const translations = {
         fr: {
             distance: "🏄 DISTANCE", lives: "❤️ VIES", speed: "🌊 VITESSE",
@@ -37,7 +37,7 @@
                                                                "🎮 ← → ↑ ↓ | 🌀 Ctrl/Shift Impulso | ⭐❤️ bonus | ⏰ Eventos de tiempo");
     }
 
-    // ---------- GESTION COULEUR ----------
+ 
     function applyThemeColor(color) {
         let primary = '#ffb347', bgGrad = 'radial-gradient(circle at 20% 30%, #0b2b44, #021526)';
         if (color === 'jaune') { primary = '#ffcc33'; bgGrad = 'radial-gradient(circle at 20% 30%, #5a4a1a, #2a2505)'; }
@@ -50,7 +50,7 @@
         window.surfboardColor = color;
     }
 
-    // ---------- MUSIQUE ----------
+
     let audioElement = null;
     function loadMusic(file) {
         if (audioElement) { audioElement.pause(); audioElement = null; }
@@ -63,28 +63,28 @@
     }
     function stopMusic() { if (audioElement) { audioElement.pause(); audioElement = null; } }
 
-    // ---------- VARIABLES JEU ----------
+
     let gameRunning = true;
     let animationId = null;
     let gameInitialized = false;
     let canvas, ctx, W = 1000, H = 600;
     let surfer, leftPressed = false, rightPressed = false, upPressed = false, downPressed = false;
     let distance = 0, lives = 3, baseSpeed = 3.2, currentSpeed, maxSpeed = 12;
-    let obstacles = [], powerups = [], projectiles = []; // projectiles pour le requin
+    let obstacles = [], powerups = [], projectiles = [];
     let boostActive = false, boostTimer = 0, normalSpeed;
     let spawnCounter = 0, spawnDelay = 45;
     let highDistance = localStorage.getItem('surfHighDist') ? parseInt(localStorage.getItem('surfHighDist')) : 0;
     let waveOffset = 0, waveAmplitude = 10;
     let particles = [];
 
-    // Gestion du temps et événements spéciaux
-    let gameStartTime = 0;     // timestamp au début de la partie (performance.now)
+   
+    let gameStartTime = 0;     
     let elapsedSeconds = 0;
-    let lastOctopusTime = 0;   // dernière apparition de pieuvre (en secondes)
+    let lastOctopusTime = 0;  
     let sharkEventTriggered = false;
     let boatEventTriggered = false;
-    let activeShark = null;     // { x, y, hp?, active, bricksCooldown }
-    let activeBoat = null;      // { x, y, direction, active }
+    let activeShark = null;     
+    let activeBoat = null;    
 
     const timerSpan = document.getElementById('timerValue');
     const distanceSpan = document.getElementById('distanceValue');
@@ -155,11 +155,11 @@
         }
     }
 
-    // ---------- ÉVÉNEMENTS TEMPORELS ----------
+   
     function triggerOctopusAttack() {
         if (!gameRunning) return;
-        // Fait apparaître une pieuvre géante qui se déplace rapidement vers le joueur et le fait tomber
-        let side = Math.random() < 0.5 ? -1 : 1; // gauche ou droite
+       
+        let side = Math.random() < 0.5 ? -1 : 1; 
         let startX = side === -1 ? -50 : W + 50;
         let targetY = surfer.y + surfer.height/2;
         let octo = {
@@ -209,31 +209,31 @@
         elapsedSeconds = elapsed;
         updateUI();
 
-        // Pieuvre toutes les 10 secondes
+       
         if (elapsedSeconds - lastOctopusTime >= 10 && elapsedSeconds > 0) {
             lastOctopusTime = elapsedSeconds;
             triggerOctopusAttack();
         }
 
-        // Requin à 30 secondes (une seule fois)
+       
         if (!sharkEventTriggered && elapsedSeconds >= 30) {
             triggerSharkEvent();
         }
 
-        // Bateau à 60 secondes
+      
         if (!boatEventTriggered && elapsedSeconds >= 60) {
             triggerBoatEvent();
         }
     }
 
     function updateSpecialAttacks() {
-        // Mise à jour du requin et de ses briques
+        
         if (activeShark && activeShark.active) {
-            // Suivre le joueur horizontalement
+           
             let dx = surfer.x + surfer.width/2 - (activeShark.x + activeShark.w/2);
             activeShark.x += Math.sign(dx) * 1.5;
             activeShark.x = Math.max(20, Math.min(W - activeShark.w - 20, activeShark.x));
-            // Tirer des briques toutes les 40 frames environ
+          
             if (activeShark.brickCooldown <= 0) {
                 let brick = {
                     x: activeShark.x + activeShark.w/2 - 10,
@@ -248,21 +248,21 @@
             } else {
                 activeShark.brickCooldown--;
             }
-            // Collision requin avec joueur = dégât
+            
             if (collide({x: surfer.x, y: surfer.y, width: surfer.width, height: surfer.height},
                         {x: activeShark.x, y: activeShark.y, width: activeShark.w, height: activeShark.h})) {
                 loseLife();
-                activeShark.active = false; // disparaît après contact
+                activeShark.active = false; 
                 addParticles(activeShark.x+40, activeShark.y+30, '#FF0000', 20);
             }
-            // Le requin peut être détruit par des collisions? (optionnel)
+           
         }
 
-        // Mise à jour du bateau
+       
         if (activeBoat && activeBoat.active) {
             activeBoat.x += activeBoat.vx;
             if (activeBoat.x > W + 200) activeBoat.active = false;
-            // Collision bateau -> joueur = perte de vie immédiate et le bateau disparaît
+          
             if (collide({x: surfer.x, y: surfer.y, width: surfer.width, height: surfer.height},
                         {x: activeBoat.x, y: activeBoat.y, width: activeBoat.w, height: activeBoat.h})) {
                 loseLife();
@@ -271,7 +271,7 @@
             }
         }
 
-        // Mise à jour des projectiles (briques)
+    
         for (let i = 0; i < projectiles.length; i++) {
             let p = projectiles[i];
             p.x += p.vx;
@@ -290,11 +290,11 @@
         }
     }
 
-    // ---------- MISE À JOUR STANDARD ----------
+  
     function updateGame() {
         if (!gameRunning) return;
 
-        // Mouvements
+        
         if (leftPressed && surfer.x > 20) surfer.x -= 7;
         if (rightPressed && surfer.x < W - surfer.width - 20) surfer.x += 7;
         if (upPressed && surfer.y > 50) surfer.y -= 7;
@@ -305,11 +305,11 @@
         updateSpeed();
         waveOffset = (waveOffset + currentSpeed * 0.6) % (Math.PI * 2);
 
-        // Déplacement obstacles
+       
         for (let o of obstacles) { o.y += o.vy; if (o.type === 'octopus') o.tentacle = (o.tentacle + 0.15) % (Math.PI * 2); if (o.type === 'boss_octopus') { o.x += o.vx; o.y += o.vy; if (o.x < -100 || o.x > W+100) o.toRemove = true; } }
         for (let p of powerups) p.y += p.vy;
 
-        // Collisions avec obstacles
+     
         const surferRect = { x: surfer.x, y: surfer.y, width: surfer.width, height: surfer.height };
         for (let i = 0; i < obstacles.length; i++) {
             let o = obstacles[i];
@@ -320,7 +320,7 @@
                 if (!gameRunning) return;
             }
         }
-        // Collisions powerups
+       
         for (let i = 0; i < powerups.length; i++) {
             let p = powerups[i];
             if (collide(surferRect, { x: p.x, y: p.y, width: p.w, height: p.h })) {
@@ -331,15 +331,15 @@
             }
         }
 
-        // Nettoyage
+     
         obstacles = obstacles.filter(o => o.y + o.h < H + 100 && !o.toRemove);
         powerups = powerups.filter(p => p.y + p.h < H + 100);
 
-        // Spawn classique
+     
         if (spawnCounter <= 0) { spawnObject(); spawnDelay = Math.max(35, 75 - Math.floor(currentSpeed * 2.2)); spawnCounter = spawnDelay; }
         else spawnCounter--;
 
-        // Particules
+      
         for (let i = 0; i < particles.length; i++) {
             particles[i].x += particles[i].vx;
             particles[i].y += particles[i].vy;
@@ -348,7 +348,7 @@
         }
     }
 
-    // ---------- DESSINS ----------
+
     function drawSea() {
         let grad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
         grad.addColorStop(0, '#6fc3df'); grad.addColorStop(1, '#3282a7');
@@ -447,7 +447,7 @@
         surfer.x = W / 2 - surfer.width / 2; surfer.y = H - 100;
         leftPressed = rightPressed = upPressed = downPressed = false;
         spawnCounter = 10;
-        // Réinitialisation événements temporels
+     
         gameStartTime = performance.now();
         elapsedSeconds = 0;
         lastOctopusTime = 0;
@@ -458,7 +458,7 @@
         updateUI();
     }
 
-    // Initialisation du jeu
+    
     function initGameObjects() {
         canvas = document.getElementById('gameCanvas');
         ctx = canvas.getContext('2d');
@@ -501,7 +501,7 @@
         document.getElementById('menuScreen').classList.remove('hidden');
     }
 
-    // Gestion des écrans
+   
     document.getElementById('startButton').addEventListener('click', () => {
         document.getElementById('splashScreen').classList.add('hidden');
         document.getElementById('menuScreen').classList.remove('hidden');
@@ -524,7 +524,7 @@
         document.getElementById('menuScreen').classList.remove('hidden');
     });
 
-    // Personnalisation
+ 
     document.getElementById('applyCustomBtn').addEventListener('click', () => {
         currentLang = document.getElementById('langSelect').value;
         updateUITexts();
@@ -534,7 +534,7 @@
     });
     document.getElementById('stopMusicBtn').addEventListener('click', stopMusic);
 
-    // Valeurs par défaut
+  
     updateUITexts();
     applyThemeColor('noir');
     window.surfboardColor = 'noir';
