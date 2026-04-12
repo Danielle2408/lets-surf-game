@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<<<<<<< HEAD
     <title>🏄 Let's Surf - Édition Kraken</title>
     <link rel="stylesheet" href="jeu.css">
 </head>
@@ -53,3 +54,101 @@
     <script src="jeu.js"></script>
 </body>
 </html>
+=======
+    <title>🏄 Edge Surf · Évolution Temporelle</title>
+    <link rel="stylesheet" href="jeu.css">
+</head>
+<body>
+
+
+<div id="splashScreen" class="screen">
+    <div class="card">
+        <h1>🏄 GROUPE 1</h1>
+        <p style="color:#ccddee; margin:10px 0">Edge Surf - Édition Temporelle</p>
+        <button id="startButton" class="btn">🌊 START</button>
+    </div>
+</div>
+
+
+<div id="menuScreen" class="screen hidden">
+    <div class="card">
+        <h2>🏝️ MENU SURF</h2>
+        <button id="playButton" class="btn">▶ JOUER</button>
+        <button id="helpButtonMenu" class="btn btn-secondary">❓ AIDE</button>
+        <button id="customButtonMenu" class="btn btn-secondary">🎨 PERSONNALISATION</button>
+    </div>
+</div>
+
+
+<div id="helpScreen" class="screen hidden">
+    <div class="card">
+        <h2>📖 COMMENT JOUER</h2>
+        <div style="text-align: left; color:#eef4ff;">
+            <p>🎮 <strong>Déplacements :</strong> ← → ↑ ↓ (flèches)</p>
+            <p>🌀 <strong>Boost :</strong> maintenir <kbd>Ctrl</kbd> ou <kbd>Shift</kbd></p>
+            <p>🌟 <strong>Objectif :</strong> Évite rochers & pieuvres.<br>⭐ = distance, ❤️ = vie.</p>
+            <p>⏱️ <strong>Événements chrono :</strong><br>
+            - Toutes les 10s : une pieuvre géante attaque !<br>
+            - À 30s : un requin lance des briques.<br>
+            - À 60s : un bateau tente de te renverser.</p>
+        </div>
+        <button id="backFromHelp" class="btn btn-secondary">⬅ RETOUR MENU</button>
+    </div>
+</div>
+
+
+<div id="customScreen" class="screen hidden">
+    <div class="card">
+        <h2>🎛️ PERSONNALISATION</h2>
+        <div class="options-group">
+            <div class="option-row">
+                <label>🌐 LANGUE :</label>
+                <select id="langSelect">
+                    <option value="fr">Français</option>
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="es">Español</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label>🎨 COULEUR THÈME :</label>
+                <select id="colorSelect">
+                    <option value="noir">⚫ Noir / Ébène</option>
+                    <option value="jaune">🟡 Jaune Solaire</option>
+                    <option value="vert">🟢 Vert Océan</option>
+                    <option value="gris">⚪ Gris Argenté</option>
+                </select>
+            </div>
+            <div class="option-row">
+                <label>🎵 MUSIQUE (fichier) :</label>
+                <input type="file" id="musicFile" accept="audio/*">
+            </div>
+            <div class="option-row">
+                <button id="applyCustomBtn" class="btn">✅ APPLIQUER</button>
+                <button id="stopMusicBtn" class="btn-secondary">🔇 Couper musique</button>
+            </div>
+        </div>
+        <button id="backFromCustom" class="btn btn-secondary">⬅ RETOUR MENU</button>
+    </div>
+</div>
+
+
+<div id="gameWrapper" style="display: none;">
+    <div class="game-container">
+        <canvas id="gameCanvas" width="1000" height="600"></canvas>
+        <div class="info-panel">
+            <div class="score-box"><span id="distLabel">🏄 DISTANCE</span> <span id="distanceValue">0</span><span> m</span></div>
+            <div class="score-box"><span id="livesLabel">❤️ VIES</span> <span id="livesValue">3</span></div>
+            <div class="speed-box"><span id="speedLabel">🌊 VITESSE</span> <span id="speedValue">3</span></div>
+            <div class="score-box"><span>⏱️ TEMPS</span> <span id="timerValue">0</span><span> s</span></div>
+            <button id="restartButton">🏄‍♂️ NOUVELLE VAGUE</button>
+            <button id="menuButton" class="btn-secondary">📋 MENU</button>
+        </div>
+        <div class="controls-hint" id="controlsHint">🎮 ← → ↑ ↓ | 🌀 Ctrl/Shift Boost | ⭐❤️ bonus | ⏰ Événements chrono</div>
+    </div>
+</div>
+
+<script src="jeu.js" defer></script>
+</body>
+</html>
+>>>>>>> 52f9937f5e66e2a0e6edc0b8a1a478fb960ade62
