@@ -74,29 +74,28 @@
     let boostActive = false, boostTimer = 0, normalSpeed;
     let spawnCounter = 0, spawnDelay = 45;
     let highDistance = localStorage.getItem('surfHighDist') ? parseInt(localStorage.getItem('surfHighDist')) : 0;
-    let waveOffset = 0, waveAmplitude = 10;
-    let particles = [];
+    
+    // Pause
+    let gamePaused = false;
+    
+    // UI
+    const restartBtn = document.getElementById('restartButton');
+    const pauseBtn = document.getElementById('pauseButton');
+    
+    // Variables UI (cachées une fois pour performance)
+    const elDistance = document.getElementById('distanceValue');
+    const elLivesBox = document.getElementById('livesBox');
+    const elSpeed    = document.getElementById('speedValue');
 
-    // Gestion du temps et événements spéciaux
-    let gameStartTime = 0;     // timestamp au début de la partie (performance.now)
-    let elapsedSeconds = 0;
-    let lastOctopusTime = 0;   // dernière apparition de pieuvre (en secondes)
-    let sharkEventTriggered = false;
-    let boatEventTriggered = false;
-    let activeShark = null;     // { x, y, hp?, active, bricksCooldown }
-    let activeBoat = null;      // { x, y, direction, active }
-
-    const timerSpan = document.getElementById('timerValue');
-    const distanceSpan = document.getElementById('distanceValue');
-    const livesSpan = document.getElementById('livesValue');
-    const speedSpan = document.getElementById('speedValue');
-
-    function updateUI() {
-        distanceSpan.innerText = Math.floor(distance);
-        livesSpan.innerText = lives;
-        let dispSpeed = boostActive ? currentSpeed * 1.8 : currentSpeed;
-        speedSpan.innerText = dispSpeed.toFixed(1);
-        timerSpan.innerText = Math.floor(elapsedSeconds);
+    // Construit les 5 cœurs une fois au départ
+    function buildHearts() {
+        elLivesBox.innerHTML = '';
+        for (let i = 0; i < 5; i++) {
+            const h = document.createElement('span');
+            h.className = 'heart';
+            h.textContent = i < lives ? '❤️' : '🖤';
+            elLivesBox.appendChild(h);
+        }
     }
     function addDistance(meters) {
         distance += meters;
