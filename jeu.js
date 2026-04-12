@@ -1,662 +1,710 @@
-(function(){
-   
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const W = 1000, H = 600;
-    canvas.width = W; canvas.height = H;
+(function() {
+    
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+        CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+            if (w < 2 * r) r = w / 2;
+            if (h < 2 * r) r = h / 2;
+            this.moveTo(x + r, y);
+            this.lineTo(x + w - r, y);
+            this.quadraticCurveTo(x + w, y, x + w, y + r);
+            this.lineTo(x + w, y + h - r);
+            this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            this.lineTo(x + r, y + h);
+            this.quadraticCurveTo(x, y + h, x, y + h - r);
+            this.lineTo(x, y + r);
+            this.quadraticCurveTo(x, y, x + r, y);
+            return this;
+        };
+    }
 
-   -
-    let distance = 0;
-    let lives = 3;
-    let gameRunning = true;
-    let baseSpeed = 3.2;
-    let currentSpeed = baseSpeed;
-    let maxSpeed = 12;
-    
-    
-    const SURFER_W = 36, SURFER_H = 36;
-    let surfer = { x: W/2 - SURFER_W/2, y: H - 100, width: SURFER_W, height: SURFER_H };
-    let leftPressed = false, rightPressed = false, upPressed = false, downPressed = false;
-    const MOVE_STEP = 7;
-    
-  
-    let obstacles = [];    
-    let otherSurfers = [];
-    let powerups = [];
-    
-   
-    let kraken = { 
-        active: false, 
-        x: 0, y: 0, 
-        targetX: 0, targetY: 0,
-        timer: 0,           
-        cooldown: 0,        
-        speed: 2.2
-    };
-    
-   
-    let waveOffset = 0;
-    let waveAmplitude = 10;
-    
- 
-    let particles = [];
-    
- 
-    let boostActive = false;
-    let boostTimer = 0;
-    let normalSpeed = baseSpeed;
-    
-  
-    let spawnCounter = 0;
-    let spawnDelay = 45;
-    
-   
-    let highDistance = localStorage.getItem('surfHighDist') ? parseInt(localStorage.getItem('surfHighDist')) : 0;
-    
-  
-    const distanceSpan = document.getElementById('distanceValue');
-    const livesSpan = document.getElementById('livesValue');
-    const speedSpan = document.getElementById('speedValue');
-    const restartBtn = document.getElementById('restartButton');
-    
-  
-    function updateUI() {
-        distanceSpan.innerText = Math.floor(distance);
-        livesSpan.innerText = lives;
-        let displaySpeed = boostActive ? currentSpeed * 1.8 : currentSpeed;
-        speedSpan.innerText = displaySpeed.toFixed(1);
-    }
-    
-    function addDistance(meters) {
-        distance += meters;
-        if(Math.floor(distance) > highDistance) {
-            highDistance = Math.floor(distance);
-            localStorage.setItem('surfHighDist', highDistance);
-        }
-        updateUI();
-    }
-    
-    function addParticles(x, y, color, count=8) {
-        for(let i=0;i<count;i++) {
-            particles.push({
-                x: x + Math.random()*20 - 10,
-                y: y + Math.random()*20 - 10,
-                vx: (Math.random() - 0.5)*3,
-                vy: (Math.random() - 0.5)*3 - 2,
-                life: 1,
-                color: color
-            });
-        }
-    }
-    
-    function activateBoost() {
-        if(boostActive) return;
-        boostActive = true;
-        normalSpeed = currentSpeed;
-        currentSpeed = Math.min(maxSpeed + 2, currentSpeed * 1.8);
-        boostTimer = 180;
-        addParticles(surfer.x+SURFER_W/2, surfer.y+SURFER_H/2, '#88FFAA', 12);
-        updateUI();
-    }
-    
-    function loseLife() {
-        lives--;
-        updateUI();
-        addParticles(surfer.x+SURFER_W/2, surfer.y+SURFER_H/2, '#FF6666', 15);
-        if(lives <= 0) {
-            gameRunning = false;
-        } else {
-            surfer.x = W/2 - SURFER_W/2;
-            surfer.y = H - 100;
-        }
-    }
-    
-    function updateSpeed() {
-        if(boostActive) return;
-        let speedBonus = Math.floor(distance / 400);
-        currentSpeed = Math.min(maxSpeed, baseSpeed + speedBonus * 0.5);
-        updateUI();
-    }
-    
-    function collide(r1, r2) {
-        return !(r2.x > r1.x + r1.width || r2.x + r2.width < r1.x ||
-                 r2.y > r1.y + r1.height || r2.y + r2.height < r1.y);
-    }
-    
-    
-    function spawnObject() {
-        if(!gameRunning) return;
-        const rand = Math.random();
-        const margin = 40;
-        const x = margin + Math.random() * (W - 80);
-        const y = -50;
+    window.addEventListener('DOMContentLoaded', () => {
         
-        if(rand < 0.4) { 
-            obstacles.push({
-                type: 'shark',
-                x: x, y: y, w: 48, h: 32,
-                vx: (Math.random() - 0.5)*1.5,
-                vy: currentSpeed,
-                angle: 0,
-                tailAngle: 0
-            });
-        } else if(rand < 0.65) { 
-            otherSurfers.push({
-                type: 'surfer',
-                x: x, y: y, w: 32, h: 32,
-                vx: (Math.random() - 0.5)*1.5,
-                vy: currentSpeed * (0.8 + Math.random()*0.6)
-            });
-        } else { 
-            const typePow = Math.random() < 0.6 ? 'star' : 'heart';
-            powerups.push({
-                type: typePow,
-                x: x, y: y, w: 28, h: 28,
-                vy: currentSpeed
-            });
-        }
-    }
-    
-   
-    function trySpawnKraken() {
-        if(!gameRunning) return;
-        if(kraken.active) return;
-        if(kraken.cooldown > 0) {
-            kraken.cooldown--;
-            return;
-        }
-       
-        if(distance < 200) return;
+        const titleScreen = document.getElementById('title-screen');
+        const gameContainer = document.querySelector('.game-container');
+        const startBtn = document.getElementById('start-btn');
+        const personalizationBtn = document.getElementById('personalization-btn');
+        const modal = document.getElementById('personalization-modal');
+        const closeModal = document.getElementById('close-btn');
+        const saveBtn = document.getElementById('save-btn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const restartBtn = document.getElementById('restartButton');
+        const canvas = document.getElementById('gameCanvas');
         
-        if(Math.random() < 0.008) {
-            kraken.active = true;
-            kraken.x = surfer.x - 120 + Math.random() * 240;
-            kraken.y = surfer.y - 100;
-            kraken.targetX = surfer.x;
-            kraken.targetY = surfer.y;
-            kraken.timer = 300; 
-            addParticles(kraken.x+30, kraken.y+30, '#AA3366', 20);
-        }
-    }
-    
-    function updateKraken() {
-        if(!kraken.active) return;
+        if (!canvas) return;
+        
+        const W = 1000, H = 600;
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
         
         
-        kraken.timer--;
-        if(kraken.timer <= 0) {
-            kraken.active = false;
-            kraken.cooldown = 450; 
-            addParticles(kraken.x+30, kraken.y+30, '#AA3366', 25);
-            return;
+        let gameRunning = false;
+        let paused = false;
+        let distance = 0;
+        let score = 0;
+        let lives = 3;
+        let baseSpeed = 3.2;
+        let currentSpeed = baseSpeed;
+        let maxSpeed = 12;
+        
+        const SURFER_W = 42, SURFER_H = 44;
+        let surfer = { x: W/2 - SURFER_W/2, y: H - 100, width: SURFER_W, height: SURFER_H };
+        let leftPressed = false, rightPressed = false, upPressed = false, downPressed = false;
+        const MOVE_STEP = 6.5;
+        
+        let obstacles = [];
+        let stars = [];
+        let hearts = [];
+        let kraken = { active: false, x: 0, y: 0, timer: 0, cooldown: 0, speed: 2.5 };
+        
+        let waveOffset = 0;
+        let waveAmplitude = 12;
+        let particles = [];
+        let spawnCounter = 0;
+        let spawnDelay = 45;
+        
+        let highScore = localStorage.getItem('surfHighScore') ? parseInt(localStorage.getItem('surfHighScore')) : 0;
+        let currentMusic = 'none';
+        let currentLang = 'fr';
+        
+        const distanceSpan = document.getElementById('distanceValue');
+        const scoreSpan = document.getElementById('scoreValue');
+        const livesSpan = document.getElementById('livesValue');
+        
+        const translations = {
+            fr: { pause: '⏸️ PAUSE', resume: '▶️ REPRENDRE' },
+            en: { pause: '⏸️ PAUSE', resume: '▶️ RESUME' }
+        };
+        
+        function updateUI() {
+            if (distanceSpan) distanceSpan.innerText = Math.floor(distance);
+            if (scoreSpan) scoreSpan.innerText = score;
+            if (livesSpan) livesSpan.innerText = lives;
         }
         
-       
-        let dx = surfer.x + SURFER_W/2 - (kraken.x + 30);
-        let dy = surfer.y + SURFER_H/2 - (kraken.y + 30);
-        let dist = Math.hypot(dx, dy);
-        if(dist > 0.1) {
-            kraken.x += (dx / dist) * kraken.speed;
-            kraken.y += (dy / dist) * kraken.speed;
+        function addScore(pts) {
+            score += pts;
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('surfHighScore', highScore);
+            }
+            updateUI();
         }
         
-       
-        let krakenRect = { x: kraken.x, y: kraken.y, width: 60, height: 60 };
-        let surferRect = { x: surfer.x, y: surfer.y, width: SURFER_W, height: SURFER_H };
-        if(collide(krakenRect, surferRect)) {
-            loseLife();
-            kraken.active = false;
-            kraken.cooldown = 300;
-            addParticles(kraken.x+30, kraken.y+30, '#FF4444', 30);
+        function addDistance(m) {
+            distance += m;
+            updateUI();
+            let speedBonus = Math.floor(distance / 350);
+            currentSpeed = Math.min(maxSpeed, baseSpeed + speedBonus * 0.55);
         }
         
- 
-        kraken.x = Math.max(-50, Math.min(W - 30, kraken.x));
-        kraken.y = Math.max(-50, Math.min(H + 100, kraken.y));
-    }
-    
-   
-    function updateGame() {
-        if(!gameRunning) return;
+        function addLife() {
+            if (lives < 5) lives++;
+            updateUI();
+        }
         
-        
-        if(leftPressed && surfer.x > 20) surfer.x -= MOVE_STEP;
-        if(rightPressed && surfer.x < W - SURFER_W - 20) surfer.x += MOVE_STEP;
-        if(upPressed && surfer.y > 50) surfer.y -= MOVE_STEP;
-        if(downPressed && surfer.y < H - SURFER_H - 30) surfer.y += MOVE_STEP;
-        
-      
-        if(boostActive) {
-            boostTimer--;
-            if(boostTimer <= 0) {
-                boostActive = false;
-                currentSpeed = normalSpeed;
-                updateUI();
+        function loseLife() {
+            lives--;
+            updateUI();
+            addParticles(surfer.x + SURFER_W/2, surfer.y + SURFER_H/2, '#FF4444', 20);
+            if (lives <= 0) {
+                gameRunning = false;
+                paused = false; // s'assurer que la pause n'est pas active
+            } else {
+                surfer.x = W/2 - SURFER_W/2;
+                surfer.y = H - 100;
             }
         }
         
-        addDistance(0.12 * currentSpeed);
-        updateSpeed();
-        waveOffset = (waveOffset + currentSpeed * 0.6) % (Math.PI * 2);
-        
-     
-        for(let i=0; i<obstacles.length; i++) {
-            let o = obstacles[i];
-            o.y += o.vy;
-            if(o.vx) o.x += o.vx;
-            o.x = Math.max(10, Math.min(W - o.w - 10, o.x));
-           
-            o.tailAngle = (o.tailAngle || 0) + 0.2;
+        function addParticles(x, y, color, count = 8) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x + Math.random() * 20 - 10,
+                    y: y + Math.random() * 20 - 10,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: (Math.random() - 0.5) * 3 - 2,
+                    life: 1,
+                    color: color
+                });
+            }
         }
         
-        
-        for(let i=0; i<otherSurfers.length; i++) {
-            let s = otherSurfers[i];
-            s.y += s.vy;
-            if(s.vx) s.x += s.vx;
-            s.x = Math.max(15, Math.min(W - s.w - 15, s.x));
+        function collide(r1, r2) {
+            return !(r2.x > r1.x + r1.width || r2.x + r2.width < r1.x ||
+                     r2.y > r1.y + r1.height || r2.y + r2.height < r1.y);
         }
         
-       
-        for(let p of powerups) p.y += p.vy;
+        function trySpawnKraken() {
+            if (!gameRunning || paused) return;
+            if (kraken.active) return;
+            if (kraken.cooldown > 0) {
+                kraken.cooldown--;
+                return;
+            }
+            if (distance < 400) return;
+            if (Math.random() < 0.007) {
+                kraken.active = true;
+                kraken.x = surfer.x - 80 + Math.random() * 160;
+                kraken.y = surfer.y - 100;
+                kraken.timer = 300;
+                addParticles(kraken.x + 40, kraken.y + 40, '#AA3366', 25);
+            }
+        }
         
-       
-        const surferRect = { x: surfer.x, y: surfer.y, width: SURFER_W, height: SURFER_H };
-        
-      
-        for(let i=0; i<obstacles.length; i++) {
-            const o = obstacles[i];
-            if(collide(surferRect, { x: o.x, y: o.y, width: o.w, height: o.h })) {
+        function updateKraken() {
+            if (!kraken.active) return;
+            kraken.timer--;
+            if (kraken.timer <= 0) {
+                kraken.active = false;
+                kraken.cooldown = 600;
+                addParticles(kraken.x + 40, kraken.y + 40, '#AA3366', 20);
+                return;
+            }
+            let dx = surfer.x + SURFER_W/2 - (kraken.x + 40);
+            let dy = surfer.y + SURFER_H/2 - (kraken.y + 40);
+            let dist = Math.hypot(dx, dy);
+            if (dist > 0.1) {
+                kraken.x += (dx / dist) * kraken.speed;
+                kraken.y += (dy / dist) * kraken.speed;
+            }
+            let krakenRect = { x: kraken.x, y: kraken.y, width: 80, height: 80 };
+            let surferRect = { x: surfer.x, y: surfer.y, width: SURFER_W, height: SURFER_H };
+            if (collide(krakenRect, surferRect)) {
                 loseLife();
-                obstacles.splice(i,1);
-                i--;
-                if(!gameRunning) return;
+                kraken.active = false;
+                kraken.cooldown = 600;
+                addParticles(kraken.x + 40, kraken.y + 40, '#FF4444', 30);
+                if (!gameRunning) return;
+            }
+            kraken.x = Math.max(-50, Math.min(W - 30, kraken.x));
+            kraken.y = Math.max(-50, Math.min(H + 100, kraken.y));
+        }
+        
+        function spawnObject() {
+            if (!gameRunning || paused) return;
+            const rand = Math.random();
+            const margin = 45;
+            const x = margin + Math.random() * (W - 90);
+            const y = -50;
+            
+            if (rand < 0.4) {
+                const typeRand = Math.random();
+                let typeObs;
+                if (typeRand < 0.5) typeObs = 'shark';
+                else if (typeRand < 0.8) typeObs = 'rock';
+                else typeObs = 'turtle';
+                let w, h;
+                if (typeObs === 'shark') { w = 50; h = 34; }
+                else if (typeObs === 'rock') { w = 44; h = 44; }
+                else { w = 46; h = 38; }
+                obstacles.push({
+                    type: typeObs,
+                    x: x, y: y,
+                    w: w, h: h,
+                    vy: currentSpeed,
+                    vx: typeObs === 'turtle' ? (Math.random() - 0.5) * 1.2 : 0
+                });
+            } else if (rand < 0.7) {
+                stars.push({ x: x, y: y, w: 30, h: 30, vy: currentSpeed });
+            } else {
+                hearts.push({ x: x, y: y, w: 28, h: 28, vy: currentSpeed });
             }
         }
         
-  
-        for(let i=0; i<otherSurfers.length; i++) {
-            const s = otherSurfers[i];
-            if(collide(surferRect, { x: s.x, y: s.y, width: s.w, height: s.h })) {
-                loseLife();
-                otherSurfers.splice(i,1);
-                i--;
-                if(!gameRunning) return;
+        function updateGame() {
+            if (!gameRunning || paused) return;
+            
+            if (leftPressed && surfer.x > 20) surfer.x -= MOVE_STEP;
+            if (rightPressed && surfer.x < W - SURFER_W - 20) surfer.x += MOVE_STEP;
+            if (upPressed && surfer.y > 50) surfer.y -= MOVE_STEP;
+            if (downPressed && surfer.y < H - SURFER_H - 40) surfer.y += MOVE_STEP;
+            
+            addDistance(0.12 * currentSpeed);
+            waveOffset = (waveOffset + currentSpeed * 0.6) % (Math.PI * 2);
+            
+            for (let o of obstacles) {
+                o.y += o.vy;
+                if (o.vx) o.x += o.vx;
+                o.x = Math.max(10, Math.min(W - o.w - 10, o.x));
             }
-        }
-        
-      
-        for(let i=0; i<powerups.length; i++) {
-            const p = powerups[i];
-            if(collide(surferRect, { x: p.x, y: p.y, width: p.w, height: p.h })) {
-                if(p.type === 'star') {
-                    addDistance(20);
-                    addParticles(p.x+p.w/2, p.y+p.h/2, '#FFD700', 12);
-                } else if(p.type === 'heart') {
-                    lives = Math.min(lives + 1, 5);
-                    addParticles(p.x+p.w/2, p.y+p.h/2, '#FF69B4', 12);
-                    updateUI();
+            for (let s of stars) s.y += s.vy;
+            for (let h of hearts) h.y += h.vy;
+            
+            const surferRect = { x: surfer.x, y: surfer.y, width: SURFER_W, height: SURFER_H };
+            
+            for (let i = 0; i < obstacles.length; i++) {
+                const o = obstacles[i];
+                if (collide(surferRect, { x: o.x, y: o.y, width: o.w, height: o.h })) {
+                    loseLife();
+                    obstacles.splice(i, 1);
+                    i--;
+                    if (!gameRunning) return;
                 }
-                powerups.splice(i,1);
-                i--;
+            }
+            
+            for (let i = 0; i < stars.length; i++) {
+                const s = stars[i];
+                if (collide(surferRect, { x: s.x, y: s.y, width: s.w, height: s.h })) {
+                    addScore(10);
+                    addParticles(s.x + s.w/2, s.y + s.h/2, '#FFD700', 12);
+                    stars.splice(i, 1);
+                    i--;
+                }
+            }
+            
+            for (let i = 0; i < hearts.length; i++) {
+                const h = hearts[i];
+                if (collide(surferRect, { x: h.x, y: h.y, width: h.w, height: h.h })) {
+                    addLife();
+                    addParticles(h.x + h.w/2, h.y + h.h/2, '#FF69B4', 12);
+                    hearts.splice(i, 1);
+                    i--;
+                }
+            }
+            
+            obstacles = obstacles.filter(o => o.y + o.h < H + 100);
+            stars = stars.filter(s => s.y + s.h < H + 100);
+            hearts = hearts.filter(h => h.y + h.h < H + 100);
+            
+            if (spawnCounter <= 0) {
+                spawnObject();
+                spawnDelay = Math.max(32, 72 - Math.floor(currentSpeed * 2.2));
+                spawnCounter = spawnDelay;
+            } else {
+                spawnCounter--;
+            }
+            
+            trySpawnKraken();
+            updateKraken();
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].x += particles[i].vx;
+                particles[i].y += particles[i].vy;
+                particles[i].life -= 0.02;
+                if (particles[i].life <= 0) particles.splice(i, 1);
             }
         }
         
-   
-        obstacles = obstacles.filter(o => o.y + o.h < H + 100);
-        otherSurfers = otherSurfers.filter(s => s.y + s.h < H + 100);
-        powerups = powerups.filter(p => p.y + p.h < H + 100);
-        
-       
-        if(spawnCounter <= 0) {
-            spawnObject();
-            spawnDelay = Math.max(35, 75 - Math.floor(currentSpeed * 2.5));
-            spawnCounter = spawnDelay;
-        } else {
-            spawnCounter--;
-        }
-        
-      
-        trySpawnKraken();
-        updateKraken();
-        
-      
-        for(let i=0; i<particles.length; i++) {
-            particles[i].x += particles[i].vx;
-            particles[i].y += particles[i].vy;
-            particles[i].life -= 0.02;
-            if(particles[i].life <= 0) particles.splice(i,1);
-        }
-    }
-    
-  
-    function drawSea() {
-        let gradSky = ctx.createLinearGradient(0,0,0,H*0.6);
-        gradSky.addColorStop(0,'#87CEEB');
-        gradSky.addColorStop(1,'#3A7CA5');
-        ctx.fillStyle = gradSky;
-        ctx.fillRect(0,0,W,H);
-        
-        ctx.fillStyle = '#FFD966';
-        ctx.shadowBlur = 20;
-        ctx.beginPath();
-        ctx.arc(80,70,40,0,Math.PI*2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-        
-        ctx.fillStyle = '#1E6F9F';
-        ctx.fillRect(0,H*0.6,W,H*0.4);
-        
-        ctx.beginPath();
-        for(let x=0; x<=W; x+=20) {
-            let y = H*0.6 + 15 + Math.sin(x*0.02 + waveOffset)*waveAmplitude + Math.sin(x*0.008 + waveOffset*1.5)*5;
-            if(x===0) ctx.moveTo(x,y);
-            else ctx.lineTo(x,y);
-        }
-        ctx.lineTo(W,H);
-        ctx.lineTo(0,H);
-        ctx.fillStyle = '#2E86AB';
-        ctx.fill();
-        
-        ctx.beginPath();
-        for(let x=0; x<=W; x+=15) {
-            let y = H*0.6 + 10 + Math.sin(x*0.025 + waveOffset+1)*7;
-            ctx.moveTo(x,y);
-            ctx.lineTo(x+5,y-3);
-        }
-        ctx.strokeStyle = '#FFFFFFAA';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-    }
-    
-    function drawRealisticShark(x, y, w, h, tailAngle) {
-        ctx.save();
-        ctx.shadowBlur = 3;
-       
-        ctx.fillStyle = '#4C7A9E';
-        ctx.beginPath();
-        ctx.ellipse(x + w/2, y + h/2, w/2, h/2.5, 0, 0, Math.PI*2);
-        ctx.fill();
-       
-        ctx.fillStyle = '#A8CBE1';
-        ctx.beginPath();
-        ctx.ellipse(x + w/2, y + h/1.7, w/2.5, h/4, 0, 0, Math.PI*2);
-        ctx.fill();
-     
-        ctx.fillStyle = '#3A6080';
-        ctx.beginPath();
-        ctx.moveTo(x + w*0.5, y - 8);
-        ctx.lineTo(x + w*0.65, y + h*0.2);
-        ctx.lineTo(x + w*0.35, y + h*0.2);
-        ctx.fill();
-      
-        let angle = tailAngle || 0;
-        let tailOffset = Math.sin(angle) * 8;
-        ctx.fillStyle = '#3A6080';
-        ctx.beginPath();
-        ctx.moveTo(x + w - 5, y + h/2);
-        ctx.lineTo(x + w + 15 + tailOffset, y + h/2 - 12);
-        ctx.lineTo(x + w + 15 - tailOffset, y + h/2 + 12);
-        ctx.fill();
-        
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(x + w - 12, y + h*0.35, 5, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = '#000000';
-        ctx.beginPath();
-        ctx.arc(x + w - 13, y + h*0.33, 2.5, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = '#FFFFFF';
-        ctx.beginPath();
-        ctx.arc(x + w - 14, y + h*0.31, 1, 0, Math.PI*2);
-        ctx.fill();
-      
-        ctx.strokeStyle = '#2A4A6A';
-        ctx.lineWidth = 1.5;
-        for(let i=0;i<3;i++) {
+        // ---------- DESSINS ----------
+        function drawSea() {
+            const gradSky = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+            gradSky.addColorStop(0, '#0b5e7e');
+            gradSky.addColorStop(1, '#1c8bbf');
+            ctx.fillStyle = gradSky;
+            ctx.fillRect(0, 0, W, H);
+            ctx.fillStyle = '#FFD966';
+            ctx.shadowBlur = 25;
             ctx.beginPath();
-            ctx.moveTo(x + w*0.7, y + h*0.45 + i*6);
-            ctx.lineTo(x + w*0.8, y + h*0.5 + i*5);
+            ctx.arc(100, 80, 45, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#FFFFFFAA';
+            ctx.beginPath();
+            ctx.ellipse(300, 70, 50, 30, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.ellipse(360, 60, 60, 35, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#1E6F9F';
+            ctx.fillRect(0, H * 0.6, W, H * 0.4);
+            ctx.beginPath();
+            for (let x = 0; x <= W; x += 20) {
+                let y = H * 0.6 + 18 + Math.sin(x * 0.018 + waveOffset) * waveAmplitude + Math.sin(x * 0.007 + waveOffset * 1.3) * 6;
+                if (x === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            }
+            ctx.lineTo(W, H);
+            ctx.lineTo(0, H);
+            ctx.fillStyle = '#2E86AB';
+            ctx.fill();
+            ctx.beginPath();
+            for (let x = 0; x <= W; x += 18) {
+                let y = H * 0.6 + 12 + Math.sin(x * 0.022 + waveOffset + 1.2) * 8;
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + 6, y - 4);
+            }
+            ctx.strokeStyle = '#FFFFFFCC';
+            ctx.lineWidth = 2.5;
             ctx.stroke();
         }
-        ctx.restore();
-    }
-    
-    function drawSurfer(x,y,w,h, isEnemy=false) {
-        ctx.save();
-        let angle = Math.sin(x*0.02 + waveOffset)*0.08;
-        ctx.translate(x+w/2, y+h/2);
-        ctx.rotate(angle);
-        ctx.translate(-(x+w/2), -(y+h/2));
         
-        ctx.fillStyle = isEnemy ? '#6B4C3B' : '#C27E3A';
-        ctx.shadowBlur = 4;
-        ctx.beginPath();
-        ctx.ellipse(x+w/2, y+h-6, w*0.45, 7, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = isEnemy ? '#8B634A' : '#E5A455';
-        ctx.beginPath();
-        ctx.ellipse(x+w/2, y+h-3, w*0.5, 6, 0, 0, Math.PI*2);
-        ctx.fill();
-        
-        ctx.fillStyle = isEnemy ? '#4A8B5C' : '#F55B3C';
-        ctx.beginPath();
-        ctx.roundRect(x+5, y+h*0.35, w-10, h*0.45, 8);
-        ctx.fill();
-        ctx.fillStyle = isEnemy ? '#D4A87A' : '#FCD7A0';
-        ctx.beginPath();
-        ctx.arc(x+w/2, y+h*0.28, w*0.28, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = isEnemy ? '#1A2A1A' : '#2B2B2B';
-        ctx.beginPath();
-        ctx.ellipse(x+w/2-3, y+h*0.2, 9, 6, -0.2, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = '#111';
-        ctx.fillRect(x+w*0.33, y+h*0.22, 9, 5);
-        ctx.fillRect(x+w*0.55, y+h*0.22, 9, 5);
-        ctx.restore();
-    }
-    
-    function drawStar(x,y,size) {
-        ctx.save();
-        ctx.shadowBlur = 8;
-        ctx.shadowColor = 'gold';
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        let spikes = 5;
-        let outer = size/2;
-        let inner = size/4;
-        let step = Math.PI / spikes;
-        let rot = Math.PI/2*3;
-        for(let i=0; i<spikes; i++) {
-            let x1 = x + size/2 + Math.cos(rot)*outer;
-            let y1 = y + size/2 + Math.sin(rot)*outer;
-            ctx.lineTo(x1,y1);
-            rot += step;
-            let x2 = x + size/2 + Math.cos(rot)*inner;
-            let y2 = y + size/2 + Math.sin(rot)*inner;
-            ctx.lineTo(x2,y2);
-            rot += step;
-        }
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
-    }
-    
-    function drawHeart(x,y,size) {
-        ctx.fillStyle = '#FF69B4';
-        ctx.shadowBlur = 4;
-        ctx.beginPath();
-        let xc = x + size/2;
-        let yc = y + size/2;
-        ctx.moveTo(xc, yc + size/3);
-        ctx.bezierCurveTo(xc, yc + size/3, xc - size/3, yc - size/4, xc, yc - size/2);
-        ctx.bezierCurveTo(xc + size/3, yc - size/4, xc, yc + size/3, xc, yc + size/3);
-        ctx.fill();
-    }
-    
-    function drawKraken(x,y) {
-        ctx.save();
-        ctx.fillStyle = '#8B2252';
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.ellipse(x+30, y+30, 32, 28, 0, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = '#5C1A3A';
-        for(let i=0; i<6; i++) {
-            let angle = i * Math.PI*2/6 + Date.now() * 0.01;
-            let tx = x+30 + Math.cos(angle)*42;
-            let ty = y+30 + Math.sin(angle)*38;
+        function drawShark(x, y, w, h) {
+            ctx.save();
+            ctx.shadowBlur = 4;
+            ctx.fillStyle = '#3A6B8F';
             ctx.beginPath();
-            ctx.moveTo(x+30, y+30);
-            ctx.lineTo(tx, ty);
-            ctx.lineTo(tx-12, ty-18);
+            ctx.ellipse(x + w/2, y + h/2, w/2, h/2.4, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#2C5070';
+            ctx.beginPath();
+            ctx.moveTo(x + w*0.5, y - 8);
+            ctx.lineTo(x + w*0.68, y + h*0.2);
+            ctx.lineTo(x + w*0.32, y + h*0.2);
+            ctx.fill();
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.arc(x + w - 14, y + h*0.35, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + w - 15, y + h*0.33, 2.5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#FF4444';
+            ctx.beginPath();
+            ctx.moveTo(x + w - 8, y + h*0.55);
+            ctx.lineTo(x + w - 4, y + h*0.62);
+            ctx.lineTo(x + w - 12, y + h*0.62);
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        function drawRock(x, y, w, h) {
+            ctx.fillStyle = '#6B5E4A';
+            ctx.shadowBlur = 3;
+            ctx.beginPath();
+            ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#4A3E2C';
+            ctx.beginPath();
+            ctx.ellipse(x + w/3, y + h/3, 6, 6, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#7D6E56';
+            ctx.beginPath();
+            ctx.ellipse(x + w*0.7, y + h*0.6, 5, 5, 0, 0, Math.PI*2);
             ctx.fill();
         }
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.arc(x+22, y+22, 9, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = 'black';
-        ctx.beginPath();
-        ctx.arc(x+20, y+20, 4, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.arc(x+18, y+18, 1.5, 0, Math.PI*2);
-        ctx.fill();
         
-        if(kraken.active && kraken.timer > 0) {
-            let percent = kraken.timer / 300;
-            ctx.fillStyle = '#AA3366';
-            ctx.fillRect(x+5, y-10, 50, 6);
-            ctx.fillStyle = '#FF88CC';
-            ctx.fillRect(x+5, y-10, 50 * percent, 6);
+        function drawTurtle(x, y, w, h) {
+            ctx.fillStyle = '#6B8E5A';
+            ctx.beginPath();
+            ctx.ellipse(x + w/2, y + h/2, w/2, h/2.2, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#4A6E3A';
+            ctx.beginPath();
+            ctx.ellipse(x + w/2, y + h/2.5, w/3, h/4, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#8B6E4A';
+            ctx.beginPath();
+            ctx.rect(x + w*0.7, y + h*0.3, 8, 12);
+            ctx.fill();
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(x + w*0.75, y + h*0.4, 2, 0, Math.PI*2);
+            ctx.fill();
         }
-        ctx.restore();
-    }
-    
-    function drawParticles() {
-        for(let p of particles) {
-            ctx.globalAlpha = p.life;
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, 3, 3);
-        }
-        ctx.globalAlpha = 1;
-    }
-    
-    function drawGameOver() {
-        ctx.fillStyle = 'rgba(0,0,0,0.8)';
-        ctx.fillRect(0,0,W,H);
-        ctx.font = 'bold 46px "Segoe UI"';
-        ctx.fillStyle = '#FFC857';
-        ctx.fillText("🏁 GAME OVER", W/2-150, H/2-60);
-        ctx.font = '28px monospace';
-        ctx.fillStyle = 'white';
-        ctx.fillText("Distance: "+Math.floor(distance)+" m", W/2-100, H/2+10);
-        ctx.fillText("Record: "+highDistance+" m", W/2-80, H/2+60);
-        ctx.font = '18px sans-serif';
-        ctx.fillStyle = '#DDD';
-        ctx.fillText("Clique sur NOUVELLE VAGUE", W/2-120, H/2+120);
-    }
-    
-    function draw() {
-        drawSea();
-        for(let o of obstacles) {
-            drawRealisticShark(o.x, o.y, o.w, o.h, o.tailAngle);
-        }
-        for(let s of otherSurfers) drawSurfer(s.x, s.y, s.w, s.h, true);
-        for(let p of powerups) {
-            if(p.type === 'star') drawStar(p.x, p.y, p.w);
-            else drawHeart(p.x, p.y, p.w);
-        }
-        drawSurfer(surfer.x, surfer.y, SURFER_W, SURFER_H, false);
-        if(kraken.active) drawKraken(kraken.x, kraken.y);
-        drawParticles();
         
-        ctx.font = 'bold 18px monospace';
-        ctx.fillStyle = '#FFF8E7';
-        ctx.shadowBlur = 2;
-        ctx.fillText("🏆 RECORD: "+highDistance+" m", W-180, 40);
-        ctx.font = 'italic 14px sans-serif';
-        ctx.fillStyle = '#C1E4FF';
-        ctx.fillText("← → ↑ ↓ SURF", 20, 50);
-        ctx.fillText("Ctrl/Shift = Boost", 20, 75);
-        
-        if(!gameRunning) drawGameOver();
-    }
-    
-    
-    function gameLoop() {
-        updateGame();
-        draw();
-        requestAnimationFrame(gameLoop);
-    }
-    
-  
-    window.addEventListener('keydown', (e) => {
-        if(e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
-        else if(e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
-        else if(e.key === 'ArrowUp') { upPressed = true; e.preventDefault(); }
-        else if(e.key === 'ArrowDown') { downPressed = true; e.preventDefault(); }
-        else if(e.key === 'Control' || e.key === 'Shift') { activateBoost(); e.preventDefault(); }
-        else if(e.key === 'r' || e.key === 'R') { resetGame(); e.preventDefault(); }
-    });
-    window.addEventListener('keyup', (e) => {
-        if(e.key === 'ArrowLeft') leftPressed = false;
-        if(e.key === 'ArrowRight') rightPressed = false;
-        if(e.key === 'ArrowUp') upPressed = false;
-        if(e.key === 'ArrowDown') downPressed = false;
-    });
-    
-    
-    let touchX = null, touchY = null;
-    canvas.addEventListener('touchstart', (e) => {
-        e.preventDefault();
-        let rect = canvas.getBoundingClientRect();
-        touchX = (e.touches[0].clientX - rect.left) * (W/rect.width);
-        touchY = (e.touches[0].clientY - rect.top) * (H/rect.height);
-    });
-    canvas.addEventListener('touchmove', (e) => {
-        e.preventDefault();
-        if(touchX !== null && touchY !== null) {
-            let rect = canvas.getBoundingClientRect();
-            let currentX = (e.touches[0].clientX - rect.left) * (W/rect.width);
-            let currentY = (e.touches[0].clientY - rect.top) * (H/rect.height);
-            let deltaX = currentX - touchX;
-            let deltaY = currentY - touchY;
-            surfer.x += deltaX;
-            surfer.y += deltaY;
-            surfer.x = Math.max(20, Math.min(W - SURFER_W - 20, surfer.x));
-            surfer.y = Math.max(50, Math.min(H - SURFER_H - 30, surfer.y));
-            touchX = currentX;
-            touchY = currentY;
+        function drawSurfer(x, y, w, h) {
+            ctx.save();
+            let angle = Math.sin(x * 0.015 + waveOffset) * 0.1;
+            ctx.translate(x + w/2, y + h/2);
+            ctx.rotate(angle);
+            ctx.translate(-(x + w/2), -(y + h/2));
+            ctx.fillStyle = '#D48A3A';
+            ctx.beginPath();
+            ctx.ellipse(x + w/2, y + h - 8, w*0.48, 9, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#B8732A';
+            ctx.beginPath();
+            ctx.ellipse(x + w/2, y + h - 4, w*0.52, 7, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#E85D3A';
+            ctx.beginPath();
+            ctx.roundRect(x + 6, y + h*0.35, w - 12, h*0.45, 10);
+            ctx.fill();
+            ctx.fillStyle = '#FCD7A0';
+            ctx.beginPath();
+            ctx.arc(x + w/2, y + h*0.27, w*0.3, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#2B2B2B';
+            ctx.beginPath();
+            ctx.ellipse(x + w/2 - 4, y + h*0.18, 10, 7, -0.2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#111';
+            ctx.fillRect(x + w*0.33, y + h*0.21, 11, 6);
+            ctx.fillRect(x + w*0.54, y + h*0.21, 11, 6);
+            ctx.restore();
         }
+        
+        function drawStar(x, y, size) {
+            ctx.save();
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = 'gold';
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            let spikes = 5, outer = size/2, inner = size/4.5;
+            let step = Math.PI / spikes, rot = Math.PI/2*3;
+            for (let i = 0; i < spikes; i++) {
+                let x1 = x + size/2 + Math.cos(rot) * outer;
+                let y1 = y + size/2 + Math.sin(rot) * outer;
+                ctx.lineTo(x1, y1);
+                rot += step;
+                let x2 = x + size/2 + Math.cos(rot) * inner;
+                let y2 = y + size/2 + Math.sin(rot) * inner;
+                ctx.lineTo(x2, y2);
+                rot += step;
+            }
+            ctx.closePath();
+            ctx.fill();
+            ctx.restore();
+        }
+        
+        function drawHeart(x, y, size) {
+            ctx.fillStyle = '#FF3366';
+            ctx.shadowBlur = 5;
+            ctx.beginPath();
+            let xc = x + size/2, yc = y + size/2;
+            ctx.moveTo(xc, yc + size/3);
+            ctx.bezierCurveTo(xc, yc + size/3, xc - size/3, yc - size/4, xc, yc - size/2);
+            ctx.bezierCurveTo(xc + size/3, yc - size/4, xc, yc + size/3, xc, yc + size/3);
+            ctx.fill();
+        }
+        
+        function drawKraken(x, y) {
+            ctx.save();
+            ctx.shadowBlur = 8;
+            ctx.fillStyle = '#7A2A5A';
+            ctx.beginPath();
+            ctx.ellipse(x + 40, y + 40, 38, 32, 0, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = '#4A1A3A';
+            for (let i = 0; i < 6; i++) {
+                let angle = i * Math.PI*2/6 + Date.now() * 0.012;
+                let tx = x + 40 + Math.cos(angle) * 48;
+                let ty = y + 40 + Math.sin(angle) * 44;
+                ctx.beginPath();
+                ctx.moveTo(x + 40, y + 40);
+                ctx.lineTo(tx, ty);
+                ctx.lineTo(tx - 14, ty - 20);
+                ctx.fill();
+            }
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.arc(x + 30, y + 30, 12, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'black';
+            ctx.beginPath();
+            ctx.arc(x + 28, y + 28, 5, 0, Math.PI*2);
+            ctx.fill();
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.arc(x + 26, y + 26, 2, 0, Math.PI*2);
+            ctx.fill();
+            if (kraken.active && kraken.timer > 0) {
+                let percent = kraken.timer / 300;
+                ctx.fillStyle = '#AA3366';
+                ctx.fillRect(x + 15, y - 12, 70, 8);
+                ctx.fillStyle = '#FF88CC';
+                ctx.fillRect(x + 15, y - 12, 70 * percent, 8);
+            }
+            ctx.restore();
+        }
+        
+        function drawParticles() {
+            for (let p of particles) {
+                ctx.globalAlpha = p.life;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 4, 4);
+            }
+            ctx.globalAlpha = 1;
+        }
+        
+        function drawGameOver() {
+            // Overlay semi-transparent
+            ctx.fillStyle = 'rgba(0,0,0,0.85)';
+            ctx.fillRect(0, 0, W, H);
+            // Fenêtre game over (style carte)
+            ctx.fillStyle = '#1E2F3A';
+            ctx.shadowBlur = 10;
+            ctx.fillRect(W/2 - 200, H/2 - 150, 400, 280);
+            ctx.fillStyle = '#FFC857';
+            ctx.font = 'bold 36px "Segoe UI"';
+            ctx.fillText("💀 GAME OVER", W/2 - 130, H/2 - 80);
+            ctx.font = '24px monospace';
+            ctx.fillStyle = 'white';
+            ctx.fillText("Distance: " + Math.floor(distance) + " m", W/2 - 100, H/2 - 20);
+            ctx.fillText("Score: " + score, W/2 - 60, H/2 + 30);
+            ctx.fillText("🏆 Record: " + highScore, W/2 - 90, H/2 + 80);
+            ctx.font = '18px sans-serif';
+            ctx.fillStyle = '#DDD';
+            ctx.fillText("Clique sur NOUVELLE VAGUE", W/2 - 120, H/2 + 140);
+            ctx.shadowBlur = 0;
+        }
+        
+        function drawPauseOverlay() {
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(0, 0, W, H);
+            ctx.font = 'bold 46px "Segoe UI"';
+            ctx.fillStyle = '#FFF';
+            ctx.fillText("⏸ PAUSE", W/2 - 90, H/2);
+            ctx.font = '22px monospace';
+            ctx.fillText("Appuie sur P ou bouton pour reprendre", W/2 - 210, H/2 + 70);
+        }
+        
+        function draw() {
+            drawSea();
+            for (let o of obstacles) {
+                if (o.type === 'shark') drawShark(o.x, o.y, o.w, o.h);
+                else if (o.type === 'rock') drawRock(o.x, o.y, o.w, o.h);
+                else if (o.type === 'turtle') drawTurtle(o.x, o.y, o.w, o.h);
+            }
+            for (let s of stars) drawStar(s.x, s.y, s.w);
+            for (let h of hearts) drawHeart(h.x, h.y, h.w);
+            if (kraken.active) drawKraken(kraken.x, kraken.y);
+            drawSurfer(surfer.x, surfer.y, SURFER_W, SURFER_H);
+            drawParticles();
+            
+            ctx.font = 'bold 18px monospace';
+            ctx.fillStyle = '#FFF8E7';
+            ctx.fillText("🏆 RECORD: " + highScore, W - 190, 45);
+            ctx.font = 'italic 15px sans-serif';
+            ctx.fillStyle = '#C1E4FF';
+            ctx.fillText("← → ↑ ↓", 25, 55);
+            ctx.fillText("P = Pause", 25, 85);
+            
+            // Affichage du game over si le jeu est terminé
+            if (!gameRunning) {
+                drawGameOver();
+            }
+            if (paused && gameRunning) drawPauseOverlay();
+        }
+        
+        function gameLoop() {
+            updateGame();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        
+        window.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            if (e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
+            else if (e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
+            else if (e.key === 'ArrowUp') { upPressed = true; e.preventDefault(); }
+            else if (e.key === 'ArrowDown') { downPressed = true; e.preventDefault(); }
+            else if (e.key === 'p' || e.key === 'P') {
+                e.preventDefault();
+                if (!gameRunning) return;
+                paused = !paused;
+                if (pauseBtn) pauseBtn.textContent = paused ? translations[currentLang].resume : translations[currentLang].pause;
+            }
+        });
+        window.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft') leftPressed = false;
+            if (e.key === 'ArrowRight') rightPressed = false;
+            if (e.key === 'ArrowUp') upPressed = false;
+            if (e.key === 'ArrowDown') downPressed = false;
+        });
+        
+       
+        let touchX = null, touchY = null;
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = W / rect.width;
+            const scaleY = H / rect.height;
+            touchX = (e.touches[0].clientX - rect.left) * scaleX;
+            touchY = (e.touches[0].clientY - rect.top) * scaleY;
+        });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (touchX !== null && touchY !== null && gameRunning && !paused) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = W / rect.width;
+                const scaleY = H / rect.height;
+                const currentX = (e.touches[0].clientX - rect.left) * scaleX;
+                const currentY = (e.touches[0].clientY - rect.top) * scaleY;
+                const deltaX = currentX - touchX;
+                const deltaY = currentY - touchY;
+                surfer.x += deltaX;
+                surfer.y += deltaY;
+                surfer.x = Math.max(20, Math.min(W - SURFER_W - 20, surfer.x));
+                surfer.y = Math.max(50, Math.min(H - SURFER_H - 40, surfer.y));
+                touchX = currentX;
+                touchY = currentY;
+            }
+        });
+        canvas.addEventListener('touchend', () => { touchX = null; touchY = null; });
+        
+        function resetGame() {
+            gameRunning = true;
+            paused = false;
+            distance = 0;
+            score = 0;
+            lives = 3;
+            currentSpeed = baseSpeed;
+            obstacles = [];
+            stars = [];
+            hearts = [];
+            particles = [];
+            kraken.active = false;
+            kraken.cooldown = 0;
+            kraken.timer = 0;
+            surfer.x = W/2 - SURFER_W/2;
+            surfer.y = H - 100;
+            leftPressed = rightPressed = upPressed = downPressed = false;
+            spawnCounter = 15;
+            updateUI();
+            if (pauseBtn) pauseBtn.textContent = translations[currentLang].pause;
+        }
+        
+        function startGame() {
+            if (titleScreen) titleScreen.style.display = 'none';
+            if (gameContainer) gameContainer.style.display = 'flex';
+            resetGame();
+        }
+        
+        
+        if (startBtn) startBtn.addEventListener('click', startGame);
+        if (personalizationBtn) {
+            personalizationBtn.addEventListener('click', () => { if (modal) modal.style.display = 'block'; });
+        }
+        if (closeModal) {
+            closeModal.addEventListener('click', () => { if (modal) modal.style.display = 'none'; });
+        }
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                const langSelect = document.getElementById('lang-select');
+                if (langSelect) currentLang = langSelect.value;
+                const musicSelect = document.getElementById('music-select');
+                if (musicSelect) currentMusic = musicSelect.value;
+                localStorage.setItem('surfLang', currentLang);
+                localStorage.setItem('surfMusic', currentMusic);
+                const music1 = document.getElementById('music1');
+                const music2 = document.getElementById('music2');
+                if (music1) music1.pause();
+                if (music2) music2.pause();
+                if (currentMusic !== 'none') {
+                    const musicElem = document.getElementById(currentMusic);
+                    if (musicElem) musicElem.play().catch(e => console.log('Audio error', e));
+                }
+                if (modal) modal.style.display = 'none';
+            });
+        }
+        if (restartBtn) restartBtn.addEventListener('click', () => {
+            resetGame();
+        });
+        if (pauseBtn) {
+            pauseBtn.addEventListener('click', () => {
+                if (!gameRunning) return;
+                paused = !paused;
+                pauseBtn.textContent = paused ? translations[currentLang].resume : translations[currentLang].pause;
+            });
+        }
+        
+
+        const savedLang = localStorage.getItem('surfLang') || 'fr';
+        const savedMusic = localStorage.getItem('surfMusic') || 'none';
+        const langSelect = document.getElementById('lang-select');
+        if (langSelect) langSelect.value = savedLang;
+        const musicSelect = document.getElementById('music-select');
+        if (musicSelect) musicSelect.value = savedMusic;
+        currentLang = savedLang;
+        currentMusic = savedMusic;
+        if (currentMusic !== 'none') {
+            const musicElem = document.getElementById(currentMusic);
+            if (musicElem) musicElem.play().catch(e => console.log('Audio error', e));
+        }
+        
+        gameLoop();
     });
-    canvas.addEventListener('touchend', () => { touchX = null; touchY = null; });
-    
-    function resetGame() {
-        gameRunning = true;
-        distance = 0;
-        lives = 3;
-        currentSpeed = baseSpeed;
-        obstacles = [];
-        otherSurfers = [];
-        powerups = [];
-        particles = [];
-        kraken.active = false;
-        kraken.cooldown = 0;
-        kraken.timer = 0;
-        boostActive = false;
-        surfer.x = W/2 - SURFER_W/2;
-        surfer.y = H - 100;
-        leftPressed = rightPressed = upPressed = downPressed = false;
-        spawnCounter = 10;
-        updateUI();
-    }
-    
-    restartBtn.addEventListener('click', resetGame);
-    resetGame();
-    gameLoop();
 })();
