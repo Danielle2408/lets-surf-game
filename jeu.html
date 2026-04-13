@@ -3,53 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🏄 Let's Surf - Édition Kraken</title>
+    <title>🏄Let's Surf Edge</title>
     <link rel="stylesheet" href="jeu.css">
 </head>
 <body>
-    <div id="title-screen">
-        <h1>🌊 GROUPE1 🌊</h1>
-        <p> l'ets surf</p>
-        <button id="start-btn">🏄‍♂️ DÉMARRER LA VAGUE 🏄‍♂️</button>
-        <button id="personalization-btn">⚙️ PERSONNALISATION</button>
+<div class="game-wrapper">
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="krakenWarning" class="kraken-alert hidden">⚠️ LE KRAKEN EST PROCHE ! UTILISE LES ROCHERS !</div>
+
+    <div class="hud hidden" id="hud">
+        <div class="hud-left">
+            <button id="pauseButton" class="hud-btn">⏸</button>
+            <div id="livesBox" class="hud-lives"></div>
+        </div>
+        <div class="hud-score">🏁 <span id="distanceValue">0</span> m</div>
+        <div id="boostBox" class="hud-boosts"></div>
     </div>
 
-    <div id="personalization-modal">
-        <h2>Personnalisation</h2>
-        <label>Langue :</label>
-        <select id="lang-select">
-            <option value="fr">Français</option>
-            <option value="en">English</option>
-        </select>
-        <label>Musique :</label>
-        <select id="music-select">
-            <option value="none">Aucune</option>
-            <option value="music1">Musique 1</option>
-            <option value="music2">Musique 2</option>
-        </select>
-        <button id="save-btn">Sauvegarder</button>
-        <button id="close-btn">Fermer</button>
-    </div>
-
-    <div class="game-container" style="display: none;">
-        <div class="canvas-wrapper">
-            <canvas id="gameCanvas" width="1000" height="600"></canvas>
-        </div>
-        <div class="info-panel">
-            <div class="score-box"><span id="distanceLabel">🏄 DISTANCE : </span><span id="distanceValue">0</span> m</div>
-            <div class="score-box"><span id="scoreLabel">⭐ SCORE : </span><span id="scoreValue">0</span></div>
-            <div class="score-box"><span id="livesLabel">❤️ VIES : </span><span id="livesValue">3</span></div>
-            <button id="pauseBtn">⏸️ PAUSE</button>
-            <button id="restartButton">🔄 NOUVELLE VAGUE</button>
-        </div>
-        <div class="controls-hint">
-            🎮 ← → ↑ ↓ pour se déplacer | 🌟 Évite REQUINS, ROCHERS & TORTUES | ⭐ ÉTOILES +10 | ❤️ CŒUR +1 VIE | 🐙 KRAKEN (5s)
+    <div id="overlayMenu" class="overlay">
+        <div class="overlay-box">
+            <h1 class="menu-title">🏄Let's Surf</h1>
+            <div class="best-score-tag">Record : <span id="bestScoreMenu">0</span> m</div>
+            <div class="button-stack">
+                <button id="btnPlay" class="btn-main">JOUER</button>
+                <button id="btnSettings" class="btn-sub">PERSONNALISER</button>
+                <button id="btnHelp" class="btn-sub">AIDE</button>
+            </div>
         </div>
     </div>
 
-    <audio id="music1" src="resources/audio/music1.mp3" loop preload="none"></audio>
-    <audio id="music2" src="resources/audio/music2.mp3" loop preload="none"></audio>
+    <div id="overlayHelp" class="overlay hidden">
+        <div class="overlay-box">
+            <h2>COMMANDES</h2>
+            <ul class="help-list">
+                <li>⬅️ ➡️ : Esquiver</li>
+                <li>⬇️ : BOOST (Consomme ⚡)</li>
+                <li>🅿️ : PAUSE</li>
+                <li>💡 : Fais percuter le Kraken contre un rocher pour qu'il s'enfuie !</li>
+            </ul>
+            <button class="btn-back">RETOUR</button>
+        </div>
+    </div>
 
-    <script src="jeu.js"></script>
+    <div id="overlaySettings" class="overlay hidden">
+        <div class="overlay-box">
+            <h2>OPTIONS</h2>
+            <div class="setting-item">
+                <label>Thème :</label>
+                <select id="selectTheme">
+                    <option value="day">Océan (Jour)</option>
+                    <option value="night">Abysses (Nuit)</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>Planche :</label>
+                <select id="selectBoard">
+                    <option value="#FFD700">Planche d'Or</option>
+                    <option value="#00d4ff">Azur</option>
+                    <option value="#333333">Carbone</option>
+                </select>
+            </div>
+            <button class="btn-back">SAUVEGARDER</button>
+        </div>
+    </div>
+
+    <div id="overlayPause" class="overlay hidden">
+        <div class="overlay-box">
+            <h2 class="menu-title">PAUSE</h2>
+            <div class="button-stack">
+                <button id="btnResume" class="btn-main">CONTINUER</button>
+                <button id="btnRestartPause" class="btn-sub">REJOUER</button>
+                <button id="btnToMenuPause" class="btn-sub">MENU PRINCIPAL</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlayGameOver" class="overlay hidden">
+        <div class="overlay-box">
+            <h2 id="deathReason">WIPEOUT !</h2>
+            <p>Score : <span id="finalDist">0</span> m</p>
+            <p class="record-msg hidden" id="newRecordMsg">✨ NOUVEAU RECORD ! ✨</p>
+            <div class="button-stack">
+                <button id="btnRestart">REESSAYER</button>
+                <button id="btnToMenu" class="btn-sub">RETOUR AU MENU</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<audio id="bgMusic" loop>
+    <source src="votre-musique.mp3" type="audio/mpeg">
+</audio>
+
+<script src="jeu.js"></script>
 </body>
 </html>
