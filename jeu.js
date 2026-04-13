@@ -1,542 +1,219 @@
-
 (function() {
-    // ---------- TRADUCTIONS ----------
-    const translations = {
-        fr: {
-            distance: "🏄 DISTANCE", lives: "❤️ VIES", speed: "🌊 VITESSE",
-            gameOver: "🏁 GAME OVER", distanceM: "Distance: ", record: "Record: ",
-            restartBtn: "🏄‍♂️ NOUVELLE VAGUE", recordLabel: "🏆 RECORD: "
-        },
-        en: {
-            distance: "🏄 DISTANCE", lives: "❤️ LIVES", speed: "🌊 SPEED",
-            gameOver: "🏁 GAME OVER", distanceM: "Distance: ", record: "Best: ",
-            restartBtn: "🏄‍♂️ NEW WAVE", recordLabel: "🏆 BEST: "
-        },
-        de: {
-            distance: "🏄 DISTANZ", lives: "❤️ LEBEN", speed: "🌊 GESCHW.",
-            gameOver: "🏁 SPIEL VORBEI", distanceM: "Strecke: ", record: "Rekord: ",
-            restartBtn: "🏄‍♂️ NEUE WELLE", recordLabel: "🏆 REKORD: "
-        },
-        es: {
-            distance: "🏄 DISTANCIA", lives: "❤️ VIDAS", speed: "🌊 VELOC.",
-            gameOver: "🏁 FIN DEL JUEGO", distanceM: "Distancia: ", record: "Récord: ",
-            restartBtn: "🏄‍♂️ NUEVA OLA", recordLabel: "🏆 RÉCORD: "
-        }
-    };
-    let currentLang = 'fr';
-    function updateUITexts() {
-        const t = translations[currentLang];
-        if (!t) return;
-        document.getElementById('distLabel').innerText = t.distance;
-        document.getElementById('livesLabel').innerText = t.lives;
-        document.getElementById('speedLabel').innerText = t.speed;
-        document.getElementById('restartButton').innerText = t.restartBtn;
-        document.getElementById('controlsHint').innerHTML = (currentLang === 'fr' ? "🎮 ← → ↑ ↓ | 🌀 Ctrl/Shift Boost | ⭐❤️ bonus | ⏰ Événements chrono" :
-                                                               currentLang === 'en' ? "🎮 ← → ↑ ↓ | 🌀 Ctrl/Shift Boost | ⭐❤️ bonus | ⏰ Time events" :
-                                                               currentLang === 'de' ? "🎮 ← → ↑ ↓ | 🌀 Strg/Shift Turbo | ⭐❤️ Bonus | ⏰ Zeitereignisse" :
-                                                               "🎮 ← → ↑ ↓ | 🌀 Ctrl/Shift Impulso | ⭐❤️ bonus | ⏰ Eventos de tiempo");
+    'use strict';
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    let W, H, frame = 0, worldY = 0, score = 0;
+    let gameRunning = false, gamePaused = false;
+    let surferX, surferAngle = 0;
+    let lives = 3, boosts = 3, invincibility = 0;
+    
+    // Sauvegarde & Personnalisation
+    let highScore = parseInt(localStorage.getItem('surfRoyaleHS')) || 0;
+    let currentBoardColor = '#FFD700';
+    let currentTheme = 'day';
+
+    const sprites = {};
+    let objects = [];
+    const trail = [];
+    const kraken = { active: false, x: 0, dist: 350, speed: 1.7 };
+
+    function createSprites() {
+        const draw = (w, h, fn) => {
+            const c = document.createElement('canvas');
+            c.width = w; c.height = h;
+            fn(c.getContext('2d'), w, h);
+            return c;
+        };
+
+        // ROCHER TEXTURÉ (Face éclairée et fissures)
+        sprites.rock = draw(60, 60, g => {
+            g.fillStyle = '#444'; g.beginPath(); g.moveTo(10,55); g.lineTo(30,5); g.lineTo(55,55); g.fill();
+            g.fillStyle = '#666'; g.beginPath(); g.moveTo(30,5); g.lineTo(55,55); g.lineTo(35,55); g.fill();
+            g.strokeStyle = '#222'; g.lineWidth = 2; g.beginPath(); g.moveTo(25,25); g.lineTo(35,45); g.stroke();
+        });
+
+        // TRONC AVEC NŒUDS
+        sprites.log = draw(85, 35, g => {
+            g.fillStyle = '#5D4037'; g.fillRect(5, 8, 75, 20);
+            g.strokeStyle = '#3E2723'; g.lineWidth = 1;
+            for(let i=0; i<3; i++) { g.beginPath(); g.moveTo(10, 12+i*6); g.lineTo(70, 12+i*6); g.stroke(); }
+            g.fillStyle = '#3E2723'; g.beginPath(); g.arc(40, 18, 4, 0, 7); g.fill();
+        });
+
+        // ÎLE DÉTAILLÉE
+        sprites.island = draw(180, 180, g => {
+            g.fillStyle = '#F0E68C'; g.beginPath(); g.arc(90, 110, 80, 0, 7); g.fill();
+            g.fillStyle = '#D4C66A'; for(let i=0; i<30; i++) g.fillRect(Math.random()*140+20, Math.random()*80+70, 3, 3);
+            g.fillStyle = '#795548'; g.fillRect(85, 45, 12, 50); // Tronc palmier
+            g.fillStyle = '#2E7D32'; for(let a=0; a<5; a++) { g.save(); g.translate(91, 50); g.rotate(a*1.2); g.beginPath(); g.ellipse(20, 0, 25, 8, 0, 0, 7); g.fill(); g.restore(); }
+        });
+
+        sprites.surfer = () => draw(45, 85, g => {
+            g.fillStyle = 'rgba(0,0,0,0.15)'; g.beginPath(); g.ellipse(22, 55, 15, 35, 0, 0, 7); g.fill();
+            g.fillStyle = currentBoardColor; g.beginPath(); g.ellipse(20, 45, 12, 35, 0, 0, 7); g.fill();
+            g.fillStyle = '#e0ac69'; g.beginPath(); g.arc(20, 25, 7, 0, 7); g.fill();
+            g.fillStyle = '#333'; g.fillRect(12, 35, 16, 12);
+        });
+
+        sprites.heart = draw(40, 40, g => { g.fillStyle = '#ff3333'; g.beginPath(); g.arc(12,15,10,0,7); g.arc(28,15,10,0,7); g.lineTo(20,38); g.fill(); });
+        sprites.boost = draw(40, 40, g => { g.fillStyle = '#FFEB3B'; g.beginPath(); g.moveTo(25,2); g.lineTo(10,22); g.lineTo(22,22); g.lineTo(15,38); g.lineTo(35,15); g.fill(); });
+        sprites.kraken = draw(200, 200, g => {
+            g.fillStyle = '#4A148C'; g.beginPath(); g.arc(100, 100, 75, 0, 7); g.fill();
+            g.fillStyle = 'white'; g.beginPath(); g.arc(70, 80, 18, 0, 7); g.arc(130, 80, 18, 0, 7); g.fill();
+            g.fillStyle = 'black'; g.beginPath(); g.arc(70, 80, 8, 0, 7); g.arc(130, 80, 8, 0, 7); g.fill();
+        });
     }
 
-    // ---------- GESTION COULEUR ----------
-    function applyThemeColor(color) {
-        let primary = '#ffb347', bgGrad = 'radial-gradient(circle at 20% 30%, #0b2b44, #021526)';
-        if (color === 'jaune') { primary = '#ffcc33'; bgGrad = 'radial-gradient(circle at 20% 30%, #5a4a1a, #2a2505)'; }
-        else if (color === 'vert') { primary = '#44cc77'; bgGrad = 'radial-gradient(circle at 20% 30%, #1c4d2d, #062010)'; }
-        else if (color === 'gris') { primary = '#a0aab5'; bgGrad = 'radial-gradient(circle at 20% 30%, #3a404a, #1a1e24)'; }
-        else { primary = '#c97e5a'; bgGrad = 'radial-gradient(circle at 20% 30%, #11161f, #03070f)'; }
-        document.body.style.background = bgGrad;
-        const btns = document.querySelectorAll('.btn:not(.btn-secondary)');
-        btns.forEach(btn => { btn.style.background = primary; });
-        window.surfboardColor = color;
+    function init() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+        surferX = W / 2;
+        updateUI();
+        createSprites();
+        setupEvents();
+        requestAnimationFrame(loop);
     }
-
-    // ---------- MUSIQUE ----------
-    let audioElement = null;
-    function loadMusic(file) {
-        if (audioElement) { audioElement.pause(); audioElement = null; }
-        if (!file) return;
-        const url = URL.createObjectURL(file);
-        audioElement = new Audio(url);
-        audioElement.loop = true;
-        audioElement.volume = 0.4;
-        audioElement.play().catch(e => console.log("auto-play bloqué"));
-    }
-    function stopMusic() { if (audioElement) { audioElement.pause(); audioElement = null; } }
-
-    // ---------- VARIABLES JEU ----------
-    let gameRunning = true;
-    let animationId = null;
-    let gameInitialized = false;
-    let canvas, ctx, W = 1000, H = 600;
-    let surfer, leftPressed = false, rightPressed = false, upPressed = false, downPressed = false;
-    let distance = 0, lives = 3, baseSpeed = 3.2, currentSpeed, maxSpeed = 12;
-    let obstacles = [], powerups = [], projectiles = []; // projectiles pour le requin
-    let boostActive = false, boostTimer = 0, normalSpeed;
-    let spawnCounter = 0, spawnDelay = 45;
-    let highDistance = localStorage.getItem('surfHighDist') ? parseInt(localStorage.getItem('surfHighDist')) : 0;
-    let waveOffset = 0, waveAmplitude = 10;
-    let particles = [];
-
-    // Gestion du temps et événements spéciaux
-    let gameStartTime = 0;     // timestamp au début de la partie (performance.now)
-    let elapsedSeconds = 0;
-    let lastOctopusTime = 0;   // dernière apparition de pieuvre (en secondes)
-    let sharkEventTriggered = false;
-    let boatEventTriggered = false;
-    let activeShark = null;     // { x, y, hp?, active, bricksCooldown }
-    let activeBoat = null;      // { x, y, direction, active }
-
-    const timerSpan = document.getElementById('timerValue');
-    const distanceSpan = document.getElementById('distanceValue');
-    const livesSpan = document.getElementById('livesValue');
-    const speedSpan = document.getElementById('speedValue');
 
     function updateUI() {
-        distanceSpan.innerText = Math.floor(distance);
-        livesSpan.innerText = lives;
-        let dispSpeed = boostActive ? currentSpeed * 1.8 : currentSpeed;
-        speedSpan.innerText = dispSpeed.toFixed(1);
-        timerSpan.innerText = Math.floor(elapsedSeconds);
-    }
-    function addDistance(meters) {
-        distance += meters;
-        if (Math.floor(distance) > highDistance) {
-            highDistance = Math.floor(distance);
-            localStorage.setItem('surfHighDist', highDistance);
-        }
-        updateUI();
-    }
-    function addParticles(x, y, color, count = 8) {
-        for (let i = 0; i < count; i++) particles.push({
-            x: x + Math.random() * 20 - 10, y: y + Math.random() * 20 - 10,
-            vx: (Math.random() - 0.5) * 3, vy: (Math.random() - 0.5) * 3 - 2,
-            life: 1, color
-        });
-    }
-    function activateBoost() {
-        if (boostActive) return;
-        boostActive = true;
-        normalSpeed = currentSpeed;
-        currentSpeed = Math.min(maxSpeed + 2, currentSpeed * 1.8);
-        boostTimer = 180;
-        addParticles(surfer.x + surfer.width / 2, surfer.y + surfer.height / 2, '#FFFFAA', 12);
-        updateUI();
-    }
-    function loseLife() {
-        lives--;
-        updateUI();
-        addParticles(surfer.x + surfer.width / 2, surfer.y + surfer.height / 2, '#FF6666', 15);
-        if (lives <= 0) gameRunning = false;
-        else { surfer.x = W / 2 - surfer.width / 2; surfer.y = H - 100; }
-    }
-    function updateSpeed() {
-        if (boostActive) return;
-        let speedBonus = Math.floor(distance / 400);
-        currentSpeed = Math.min(maxSpeed, baseSpeed + speedBonus * 0.5);
-        updateUI();
-    }
-    function collide(r1, r2) {
-        return !(r2.x > r1.x + r1.width || r2.x + r2.width < r1.x ||
-                 r2.y > r1.y + r1.height || r2.y + r2.height < r1.y);
-    }
-    function spawnObject() {
-        if (!gameRunning) return;
-        const rand = Math.random();
-        const margin = 40;
-        const x = margin + Math.random() * (W - 80);
-        const y = -50;
-        if (rand < 0.55) {
-            obstacles.push({ type: 'rock', x: x, y: y, w: 38, h: 34, vy: currentSpeed, angle: Math.random() * Math.PI * 2 });
-        } else if (rand < 0.8) {
-            obstacles.push({ type: 'octopus', x: x, y: y, w: 42, h: 38, vy: currentSpeed, tentacle: 0 });
-        } else {
-            const typePow = Math.random() < 0.6 ? 'star' : 'heart';
-            powerups.push({ type: typePow, x: x, y: y, w: 28, h: 28, vy: currentSpeed });
-        }
+        document.getElementById('bestScoreMenu').textContent = highScore;
+        document.getElementById('distanceValue').textContent = score;
+        document.getElementById('livesBox').innerHTML = '❤️'.repeat(lives);
+        document.getElementById('boostBox').innerHTML = '⚡'.repeat(boosts);
     }
 
-    // ---------- ÉVÉNEMENTS TEMPORELS ----------
-    function triggerOctopusAttack() {
-        if (!gameRunning) return;
-        // Fait apparaître une pieuvre géante qui se déplace rapidement vers le joueur et le fait tomber
-        let side = Math.random() < 0.5 ? -1 : 1; // gauche ou droite
-        let startX = side === -1 ? -50 : W + 50;
-        let targetY = surfer.y + surfer.height/2;
-        let octo = {
-            type: 'boss_octopus',
-            x: startX,
-            y: Math.min(H - 80, Math.max(50, targetY + (Math.random() - 0.5) * 100)),
-            w: 70, h: 70,
-            vx: (side === -1 ? 5 : -5),
-            vy: 0,
-            life: 1,
-            attackCooldown: 0
+    function setupEvents() {
+        document.getElementById('btnPlay').onclick = startGame;
+        document.getElementById('btnRestart').onclick = startGame;
+        document.getElementById('btnRestartPause').onclick = startGame;
+        document.getElementById('pauseButton').onclick = togglePause;
+        document.getElementById('btnResume').onclick = togglePause;
+        
+        document.getElementById('btnHelp').onclick = () => showOverlay('overlayHelp');
+        document.getElementById('btnSettings').onclick = () => showOverlay('overlaySettings');
+        document.querySelectorAll('.btn-back').forEach(b => b.onclick = () => showOverlay('overlayMenu'));
+        document.getElementById('btnToMenu').onclick = () => showOverlay('overlayMenu');
+        document.getElementById('btnToMenuPause').onclick = () => { gameRunning = false; showOverlay('overlayMenu'); };
+
+        document.getElementById('selectBoard').onchange = (e) => { currentBoardColor = e.target.value; createSprites(); };
+        document.getElementById('selectTheme').onchange = (e) => { currentTheme = e.target.value; };
+
+        window.onkeydown = (e) => {
+            if (e.code === 'ArrowLeft') surferAngle = -0.75;
+            if (e.code === 'ArrowRight') surferAngle = 0.75;
+            if (e.code === 'ArrowDown') useBoost();
+            if (e.code === 'KeyP') togglePause();
         };
-        obstacles.push(octo);
-        addParticles(startX, octo.y, '#AA66FF', 20);
+        window.onkeyup = (e) => { if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') surferAngle = 0; };
     }
 
-    function triggerSharkEvent() {
-        if (sharkEventTriggered || !gameRunning) return;
-        sharkEventTriggered = true;
-        activeShark = {
-            x: W/2 - 40,
-            y: 80,
-            w: 80, h: 60,
-            active: true,
-            brickCooldown: 0,
-            hp: 5
-        };
-        addParticles(activeShark.x + 40, activeShark.y + 30, '#FF4444', 25);
+    function showOverlay(id) {
+        document.querySelectorAll('.overlay').forEach(o => o.classList.add('hidden'));
+        if (id !== 'none') document.getElementById(id).classList.remove('hidden');
     }
 
-    function triggerBoatEvent() {
-        if (boatEventTriggered || !gameRunning) return;
-        boatEventTriggered = true;
-        activeBoat = {
-            x: -150,
-            y: H - 120,
-            w: 140, h: 80,
-            vx: 3,
-            active: true,
-            attackCooldown: 0
-        };
+    function startGame() {
+        lives = 3; boosts = 3; score = 0; worldY = 0; objects = [];
+        gameRunning = true; gamePaused = false; kraken.active = false;
+        showOverlay('none');
+        document.getElementById('hud').classList.remove('hidden');
+        const m = document.getElementById('bgMusic'); if(m) m.play().catch(()=>{});
     }
 
-    function updateTimeEvents(now) {
+    function togglePause() {
         if (!gameRunning) return;
-        let elapsed = (now - gameStartTime) / 1000;
-        elapsedSeconds = elapsed;
-        updateUI();
+        gamePaused = !gamePaused;
+        showOverlay(gamePaused ? 'overlayPause' : 'none');
+        const m = document.getElementById('bgMusic'); if(m) gamePaused ? m.pause() : m.play();
+    }
 
-        // Pieuvre toutes les 10 secondes
-        if (elapsedSeconds - lastOctopusTime >= 10 && elapsedSeconds > 0) {
-            lastOctopusTime = elapsedSeconds;
-            triggerOctopusAttack();
+    function useBoost() {
+        if (boosts > 0 && gameRunning && !gamePaused) { boosts--; worldY += 600; invincibility = 80; }
+    }
+
+    function spawn() {
+        if (frame % 45 === 0) {
+            let r = Math.random(), type = 'rock', col = 25;
+            if (r > 0.9) { type = 'island'; col = 75; }
+            else if (r > 0.65) { type = 'log'; col = 35; }
+            let b = Math.random();
+            if (b < 0.02) type = 'heart'; else if (b < 0.08) type = 'boost';
+            objects.push({ x: Math.random() * W, wy: worldY + H, type: type, colRadius: col });
         }
-
-        // Requin à 30 secondes (une seule fois)
-        if (!sharkEventTriggered && elapsedSeconds >= 30) {
-            triggerSharkEvent();
-        }
-
-        // Bateau à 60 secondes
-        if (!boatEventTriggered && elapsedSeconds >= 60) {
-            triggerBoatEvent();
+        if (!kraken.active && frame > 600 && Math.random() < 0.0015) {
+            kraken.active = true; kraken.dist = 350; kraken.x = surferX;
+            document.getElementById('krakenWarning').classList.remove('hidden');
+            setTimeout(() => document.getElementById('krakenWarning').classList.add('hidden'), 3000);
         }
     }
 
-    function updateSpecialAttacks() {
-        // Mise à jour du requin et de ses briques
-        if (activeShark && activeShark.active) {
-            // Suivre le joueur horizontalement
-            let dx = surfer.x + surfer.width/2 - (activeShark.x + activeShark.w/2);
-            activeShark.x += Math.sign(dx) * 1.5;
-            activeShark.x = Math.max(20, Math.min(W - activeShark.w - 20, activeShark.x));
-            // Tirer des briques toutes les 40 frames environ
-            if (activeShark.brickCooldown <= 0) {
-                let brick = {
-                    x: activeShark.x + activeShark.w/2 - 10,
-                    y: activeShark.y + activeShark.h,
-                    w: 20, h: 15,
-                    vx: (Math.random() - 0.5) * 2,
-                    vy: 5,
-                    type: 'brick'
-                };
-                projectiles.push(brick);
-                activeShark.brickCooldown = 30;
-            } else {
-                activeShark.brickCooldown--;
-            }
-            // Collision requin avec joueur = dégât
-            if (collide({x: surfer.x, y: surfer.y, width: surfer.width, height: surfer.height},
-                        {x: activeShark.x, y: activeShark.y, width: activeShark.w, height: activeShark.h})) {
-                loseLife();
-                activeShark.active = false; // disparaît après contact
-                addParticles(activeShark.x+40, activeShark.y+30, '#FF0000', 20);
-            }
-            // Le requin peut être détruit par des collisions? (optionnel)
-        }
+    function loop() {
+        if (gameRunning && !gamePaused) {
+            frame++;
+            let speed = 6.5 + (worldY / 15000);
+            worldY += Math.cos(surferAngle) * speed;
+            surferX += Math.sin(surferAngle) * speed * 1.8;
+            surferX = Math.max(25, Math.min(W - 25, surferX));
 
-        // Mise à jour du bateau
-        if (activeBoat && activeBoat.active) {
-            activeBoat.x += activeBoat.vx;
-            if (activeBoat.x > W + 200) activeBoat.active = false;
-            // Collision bateau -> joueur = perte de vie immédiate et le bateau disparaît
-            if (collide({x: surfer.x, y: surfer.y, width: surfer.width, height: surfer.height},
-                        {x: activeBoat.x, y: activeBoat.y, width: activeBoat.w, height: activeBoat.h})) {
-                loseLife();
-                activeBoat.active = false;
-                addParticles(activeBoat.x+70, activeBoat.y+40, '#FF8844', 30);
-            }
-        }
+            if (kraken.active) {
+                kraken.dist -= (kraken.speed + (score/4000));
+                kraken.x += (surferX - kraken.x) * 0.035;
+                
+                // Collision Kraken vs Obstacles (Destruction du Kraken)
+                let ky = (H * 0.35) - kraken.dist;
+                objects.forEach(o => {
+                    if (o.type === 'rock' || o.type === 'log' || o.type === 'island') {
+                        let oy = H * 0.35 + (o.wy - worldY);
+                        if (Math.hypot(kraken.x - o.x, ky - oy) < o.colRadius + 60) kraken.active = false;
+                    }
+                });
 
-        // Mise à jour des projectiles (briques)
-        for (let i = 0; i < projectiles.length; i++) {
-            let p = projectiles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            if (p.y > H + 50 || p.x < -50 || p.x > W + 50) {
-                projectiles.splice(i,1);
-                i--;
-                continue;
+                if (kraken.active && kraken.dist < 30) endGame("LE KRAKEN VOUS A DÉVORÉ !");
             }
-            if (collide({x: surfer.x, y: surfer.y, width: surfer.width, height: surfer.height},
-                        {x: p.x, y: p.y, width: p.w, height: p.h})) {
-                loseLife();
-                projectiles.splice(i,1);
-                i--;
+
+            spawn();
+
+            for (let i = objects.length - 1; i >= 0; i--) {
+                let o = objects[i], sy = H * 0.35 + (o.wy - worldY);
+                if (sy < -200) { objects.splice(i, 1); continue; }
+                if (Math.hypot(surferX - o.x, H * 0.35 - sy) < o.colRadius + 15) {
+                    if (o.type === 'heart') { lives = Math.min(5, lives+1); objects.splice(i, 1); }
+                    else if (o.type === 'boost') { boosts = Math.min(5, boosts+1); objects.splice(i, 1); }
+                    else if (invincibility <= 0) {
+                        lives--; invincibility = 60; objects.splice(i, 1);
+                        if (lives <= 0) endGame("WIPEOUT !");
+                    }
+                }
             }
+            if (invincibility > 0) invincibility--;
+            score = Math.floor(worldY / 50);
+            trail.unshift({ x: surferX, wy: worldY }); if (trail.length > 30) trail.pop();
+            updateUI();
         }
+        draw();
+        requestAnimationFrame(loop);
     }
 
-    // ---------- MISE À JOUR STANDARD ----------
-    function updateGame() {
-        if (!gameRunning) return;
-
-        // Mouvements
-        if (leftPressed && surfer.x > 20) surfer.x -= 7;
-        if (rightPressed && surfer.x < W - surfer.width - 20) surfer.x += 7;
-        if (upPressed && surfer.y > 50) surfer.y -= 7;
-        if (downPressed && surfer.y < H - surfer.height - 30) surfer.y += 7;
-
-        if (boostActive) { boostTimer--; if (boostTimer <= 0) { boostActive = false; currentSpeed = normalSpeed; updateUI(); } }
-        addDistance(0.12 * currentSpeed);
-        updateSpeed();
-        waveOffset = (waveOffset + currentSpeed * 0.6) % (Math.PI * 2);
-
-        // Déplacement obstacles
-        for (let o of obstacles) { o.y += o.vy; if (o.type === 'octopus') o.tentacle = (o.tentacle + 0.15) % (Math.PI * 2); if (o.type === 'boss_octopus') { o.x += o.vx; o.y += o.vy; if (o.x < -100 || o.x > W+100) o.toRemove = true; } }
-        for (let p of powerups) p.y += p.vy;
-
-        // Collisions avec obstacles
-        const surferRect = { x: surfer.x, y: surfer.y, width: surfer.width, height: surfer.height };
-        for (let i = 0; i < obstacles.length; i++) {
-            let o = obstacles[i];
-            if (collide(surferRect, { x: o.x, y: o.y, width: o.w, height: o.h })) {
-                loseLife();
-                obstacles.splice(i,1);
-                i--;
-                if (!gameRunning) return;
-            }
-        }
-        // Collisions powerups
-        for (let i = 0; i < powerups.length; i++) {
-            let p = powerups[i];
-            if (collide(surferRect, { x: p.x, y: p.y, width: p.w, height: p.h })) {
-                if (p.type === 'star') { addDistance(20); addParticles(p.x + p.w/2, p.y + p.h/2, '#FFD700', 12); }
-                else if (p.type === 'heart') { lives = Math.min(lives + 1, 5); addParticles(p.x + p.w/2, p.y + p.h/2, '#FF69B4', 12); updateUI(); }
-                powerups.splice(i,1);
-                i--;
-            }
-        }
-
-        // Nettoyage
-        obstacles = obstacles.filter(o => o.y + o.h < H + 100 && !o.toRemove);
-        powerups = powerups.filter(p => p.y + p.h < H + 100);
-
-        // Spawn classique
-        if (spawnCounter <= 0) { spawnObject(); spawnDelay = Math.max(35, 75 - Math.floor(currentSpeed * 2.2)); spawnCounter = spawnDelay; }
-        else spawnCounter--;
-
-        // Particules
-        for (let i = 0; i < particles.length; i++) {
-            particles[i].x += particles[i].vx;
-            particles[i].y += particles[i].vy;
-            particles[i].life -= 0.02;
-            if (particles[i].life <= 0) particles.splice(i,1);
-        }
+    function endGame(reason) {
+        gameRunning = false;
+        document.getElementById('deathReason').textContent = reason;
+        document.getElementById('finalDist').textContent = score;
+        if (score > highScore) { highScore = score; localStorage.setItem('surfRoyaleHS', highScore); document.getElementById('newRecordMsg').classList.remove('hidden'); }
+        else document.getElementById('newRecordMsg').classList.add('hidden');
+        showOverlay('overlayGameOver');
     }
 
-    // ---------- DESSINS ----------
-    function drawSea() {
-        let grad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
-        grad.addColorStop(0, '#6fc3df'); grad.addColorStop(1, '#3282a7');
-        ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
-        ctx.fillStyle = '#FFDD77'; ctx.shadowBlur = 15; ctx.beginPath(); ctx.arc(70, 65, 35, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-        ctx.fillStyle = '#2b6d8f'; ctx.fillRect(0, H * 0.65, W, H * 0.35);
-        ctx.beginPath();
-        for (let x = 0; x <= W; x += 20) {
-            let y = H * 0.65 + 12 + Math.sin(x * 0.02 + waveOffset) * waveAmplitude + Math.sin(x * 0.008 + waveOffset * 1.5) * 5;
-            if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-        }
-        ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fillStyle = '#3994b3'; ctx.fill();
-    }
-    function drawRock(x, y, w, h) {
-        ctx.fillStyle = '#6b5a4c'; ctx.shadowBlur = 3; ctx.beginPath(); ctx.ellipse(x + w/2, y + h/2, w/2, h/2.2, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#4f3e32'; ctx.beginPath(); ctx.ellipse(x + w/3, y + h/3, w/5, h/6, 0, 0, Math.PI * 2); ctx.fill();
-    }
-    function drawOctopus(x, y, w, h, angle) {
-        ctx.fillStyle = '#b96f4a'; ctx.beginPath(); ctx.ellipse(x + w/2, y + h/2, w/2.2, h/1.8, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#9b4a2c';
-        for (let i = 0; i < 6; i++) { let off = Math.sin(angle + i) * 6; ctx.beginPath(); ctx.moveTo(x + w - 8, y + h/2); ctx.lineTo(x + w + 8 + off, y + h/2 - 8 + i*3); ctx.lineTo(x + w + 5 + off, y + h/2 + 5); ctx.fill(); }
-        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x + w - 10, y + h*0.35, 4, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = 'black'; ctx.arc(x + w - 11, y + h*0.33, 2, 0, Math.PI*2); ctx.fill();
-    }
-    function drawBossOctopus(x, y, w, h) {
-        ctx.fillStyle = '#AA66CC'; ctx.beginPath(); ctx.ellipse(x + w/2, y + h/2, w/2.2, h/1.8, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#8822AA'; ctx.beginPath(); ctx.ellipse(x + w/2, y + h/2, w/3, h/3, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'red'; ctx.beginPath(); ctx.arc(x + w - 15, y + h*0.35, 5, 0, Math.PI*2); ctx.fill();
-        for (let i = 0; i < 8; i++) { ctx.fillRect(x + w/2 - 4 + i*2, y + h-12, 3, 12); }
-    }
-    function drawSurfer(x, y, w, h) {
-        ctx.save(); ctx.shadowBlur = 2;
-        let colorBoard = '#b57a3a';
-        if (window.surfboardColor === 'jaune') colorBoard = '#f5d742';
-        else if (window.surfboardColor === 'vert') colorBoard = '#6ac46e';
-        else if (window.surfboardColor === 'gris') colorBoard = '#b0b6b0';
-        ctx.fillStyle = colorBoard;
-        ctx.beginPath(); ctx.ellipse(x + w/2, y + h - 8, w * 0.48, 8, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#F55B3C'; ctx.beginPath(); ctx.roundRect(x + 6, y + h*0.3, w - 12, h*0.5, 8); ctx.fill();
-        ctx.fillStyle = '#FCD7A0'; ctx.beginPath(); ctx.arc(x + w/2, y + h*0.28, w*0.28, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#2B2B2B'; ctx.beginPath(); ctx.ellipse(x + w/2 - 3, y + h*0.2, 8, 6, -0.2, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = 'white'; ctx.beginPath(); ctx.arc(x + w/2 - 5, y + h*0.18, 2, 0, Math.PI*2); ctx.fill();
+    function draw() {
+        ctx.fillStyle = currentTheme === 'day' ? '#1aafe8' : '#0a1a2f';
+        ctx.fillRect(0, 0, W, H);
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 4; ctx.beginPath();
+        trail.forEach((p, i) => { let sy = H * 0.35 + (p.wy - worldY); if (i === 0) ctx.moveTo(p.x, sy); else ctx.lineTo(p.x, sy); });
+        ctx.stroke();
+        objects.forEach(o => { let sy = H * 0.35 + (o.wy - worldY); ctx.drawImage(sprites[o.type], o.x - sprites[o.type].width/2, sy - sprites[o.type].height/2); });
+        if (kraken.active) ctx.drawImage(sprites.kraken, kraken.x - 100, (H * 0.35 - kraken.dist) - 100);
+        ctx.save(); ctx.translate(surferX, H * 0.35); ctx.rotate(surferAngle);
+        if (invincibility % 10 < 5) ctx.drawImage(sprites.surfer(), -22, -42);
         ctx.restore();
     }
-    function drawStar(x, y, s) { ctx.fillStyle = '#FFD700'; ctx.shadowBlur = 6; ctx.beginPath(); let step=Math.PI/5, rot=Math.PI/2*3; for(let i=0;i<5;i++){ let x1=x+s/2+Math.cos(rot)*s/2; let y1=y+s/2+Math.sin(rot)*s/2; ctx.lineTo(x1,y1); rot+=step; let x2=x+s/2+Math.cos(rot)*s/4; let y2=y+s/2+Math.sin(rot)*s/4; ctx.lineTo(x2,y2); rot+=step; } ctx.closePath(); ctx.fill(); }
-    function drawHeart(x, y, s) { ctx.fillStyle = '#FF69B4'; ctx.beginPath(); let xc=x+s/2, yc=y+s/2; ctx.moveTo(xc, yc+s/3); ctx.bezierCurveTo(xc, yc-s/4, xc-s/3, yc-s/4, xc, yc-s/2); ctx.bezierCurveTo(xc+s/3, yc-s/4, xc, yc+s/3, xc, yc+s/3); ctx.fill(); }
-    function drawShark(x, y, w, h) {
-        ctx.fillStyle = '#4C7A9E'; ctx.beginPath(); ctx.ellipse(x + w/2, y + h/2, w/2, h/2.5, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#FFFFFF'; ctx.beginPath(); ctx.arc(x + w - 12, y + h*0.35, 5, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#000000'; ctx.beginPath(); ctx.arc(x + w - 13, y + h*0.33, 2.5, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = '#A8CBE1'; ctx.beginPath(); ctx.ellipse(x + w/2, y + h/1.7, w/2.5, h/4, 0, 0, Math.PI*2); ctx.fill();
-    }
-    function drawBoat(x, y, w, h) {
-        ctx.fillStyle = '#8B5A2B'; ctx.fillRect(x, y, w, h*0.6);
-        ctx.fillStyle = '#D2B48C'; ctx.beginPath(); ctx.moveTo(x + w*0.2, y); ctx.lineTo(x + w*0.8, y); ctx.lineTo(x + w*0.5, y - h*0.5); ctx.fill();
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(x + w*0.7, y - 5, 10, 20);
-    }
-    function drawBrick(x, y, w, h) { ctx.fillStyle = '#AA5533'; ctx.fillRect(x, y, w, h); }
-    function drawParticles() { for (let p of particles) { ctx.globalAlpha = p.life; ctx.fillStyle = p.color; ctx.fillRect(p.x, p.y, 3, 3); } ctx.globalAlpha = 1; }
-    function drawGameOver() {
-        ctx.fillStyle = 'rgba(0,0,0,0.85)'; ctx.fillRect(0, 0, W, H);
-        ctx.font = 'bold 44px "Segoe UI"'; ctx.fillStyle = '#FFC857'; ctx.fillText(translations[currentLang].gameOver, W/2 - 140, H/2 - 60);
-        ctx.font = '26px monospace'; ctx.fillStyle = 'white'; ctx.fillText(translations[currentLang].distanceM + Math.floor(distance) + " m", W/2 - 110, H/2 + 10);
-        ctx.fillText(translations[currentLang].record + highDistance + " m", W/2 - 80, H/2 + 60);
-    }
-    function draw() {
-        drawSea();
-        for (let o of obstacles) {
-            if (o.type === 'rock') drawRock(o.x, o.y, o.w, o.h);
-            else if (o.type === 'octopus') drawOctopus(o.x, o.y, o.w, o.h, o.tentacle);
-            else if (o.type === 'boss_octopus') drawBossOctopus(o.x, o.y, o.w, o.h);
-        }
-        for (let p of powerups) { if (p.type === 'star') drawStar(p.x, p.y, p.w); else drawHeart(p.x, p.y, p.w); }
-        drawSurfer(surfer.x, surfer.y, surfer.width, surfer.height);
-        if (activeShark && activeShark.active) drawShark(activeShark.x, activeShark.y, activeShark.w, activeShark.h);
-        if (activeBoat && activeBoat.active) drawBoat(activeBoat.x, activeBoat.y, activeBoat.w, activeBoat.h);
-        for (let proj of projectiles) { if (proj.type === 'brick') drawBrick(proj.x, proj.y, proj.w, proj.h); }
-        drawParticles();
-        ctx.font = 'bold 16px monospace'; ctx.fillStyle = '#FFF8E7'; ctx.fillText(translations[currentLang].recordLabel + highDistance + " m", W - 190, 40);
-        if (!gameRunning) drawGameOver();
-    }
-
-    function gameLoop(now) {
-        if (gameRunning && gameStartTime > 0) updateTimeEvents(now);
-        updateGame();
-        updateSpecialAttacks();
-        draw();
-        animationId = requestAnimationFrame(gameLoop);
-    }
-
-    function resetGame() {
-        gameRunning = true;
-        distance = 0; lives = 3; currentSpeed = baseSpeed;
-        obstacles = []; powerups = []; projectiles = [];
-        particles = [];
-        boostActive = false; boostTimer = 0;
-        surfer.x = W / 2 - surfer.width / 2; surfer.y = H - 100;
-        leftPressed = rightPressed = upPressed = downPressed = false;
-        spawnCounter = 10;
-        // Réinitialisation événements temporels
-        gameStartTime = performance.now();
-        elapsedSeconds = 0;
-        lastOctopusTime = 0;
-        sharkEventTriggered = false;
-        boatEventTriggered = false;
-        activeShark = null;
-        activeBoat = null;
-        updateUI();
-    }
-
-    // Initialisation du jeu
-    function initGameObjects() {
-        canvas = document.getElementById('gameCanvas');
-        ctx = canvas.getContext('2d');
-        canvas.width = W; canvas.height = H;
-        surfer = { x: W / 2 - 18, y: H - 100, width: 36, height: 36 };
-        currentSpeed = baseSpeed;
-        normalSpeed = baseSpeed;
-        resetGame();
-
-        window.addEventListener('keydown', (e) => {
-            if (gameWrapper.style.display === 'none') return;
-            if (e.key === 'ArrowLeft') { leftPressed = true; e.preventDefault(); }
-            else if (e.key === 'ArrowRight') { rightPressed = true; e.preventDefault(); }
-            else if (e.key === 'ArrowUp') { upPressed = true; e.preventDefault(); }
-            else if (e.key === 'ArrowDown') { downPressed = true; e.preventDefault(); }
-            else if (e.key === 'Control' || e.key === 'Shift') { activateBoost(); e.preventDefault(); }
-        });
-        window.addEventListener('keyup', (e) => {
-            if (e.key === 'ArrowLeft') leftPressed = false;
-            if (e.key === 'ArrowRight') rightPressed = false;
-            if (e.key === 'ArrowUp') upPressed = false;
-            if (e.key === 'ArrowDown') downPressed = false;
-        });
-        document.getElementById('restartButton').addEventListener('click', () => { resetGame(); });
-        document.getElementById('menuButton').addEventListener('click', stopGameAndShowMenu);
-    }
-
-    const gameWrapper = document.getElementById('gameWrapper');
-    function startGame() {
-        if (!gameInitialized) { initGameObjects(); gameInitialized = true; }
-        gameWrapper.style.display = 'flex';
-        document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
-        resetGame();
-        if (animationId) cancelAnimationFrame(animationId);
-        animationId = requestAnimationFrame(gameLoop);
-    }
-    function stopGameAndShowMenu() {
-        if (animationId) { cancelAnimationFrame(animationId); animationId = null; }
-        gameWrapper.style.display = 'none';
-        document.getElementById('menuScreen').classList.remove('hidden');
-    }
-
-    // Gestion des écrans
-    document.getElementById('startButton').addEventListener('click', () => {
-        document.getElementById('splashScreen').classList.add('hidden');
-        document.getElementById('menuScreen').classList.remove('hidden');
-    });
-    document.getElementById('playButton').addEventListener('click', startGame);
-    document.getElementById('helpButtonMenu').addEventListener('click', () => {
-        document.getElementById('menuScreen').classList.add('hidden');
-        document.getElementById('helpScreen').classList.remove('hidden');
-    });
-    document.getElementById('customButtonMenu').addEventListener('click', () => {
-        document.getElementById('menuScreen').classList.add('hidden');
-        document.getElementById('customScreen').classList.remove('hidden');
-    });
-    document.getElementById('backFromHelp').addEventListener('click', () => {
-        document.getElementById('helpScreen').classList.add('hidden');
-        document.getElementById('menuScreen').classList.remove('hidden');
-    });
-    document.getElementById('backFromCustom').addEventListener('click', () => {
-        document.getElementById('customScreen').classList.add('hidden');
-        document.getElementById('menuScreen').classList.remove('hidden');
-    });
-
-    // Personnalisation
-    document.getElementById('applyCustomBtn').addEventListener('click', () => {
-        currentLang = document.getElementById('langSelect').value;
-        updateUITexts();
-        applyThemeColor(document.getElementById('colorSelect').value);
-        const file = document.getElementById('musicFile').files[0];
-        if (file) loadMusic(file);
-    });
-    document.getElementById('stopMusicBtn').addEventListener('click', stopMusic);
-
-    // Valeurs par défaut
-    updateUITexts();
-    applyThemeColor('noir');
-    window.surfboardColor = 'noir';
+    init();
 })();
-

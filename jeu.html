@@ -3,99 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>🏄 Edge Surf · Évolution Temporelle</title>
+    <title>🏄Let's Surf Edge</title>
     <link rel="stylesheet" href="jeu.css">
 </head>
 <body>
+<div class="game-wrapper">
+    <canvas id="gameCanvas"></canvas>
 
-<!-- ÉCRAN DE GARDE : GROUPE 1 -->
-<div id="splashScreen" class="screen">
-    <div class="card">
-        <h1>🏄 GROUPE 1</h1>
-        <p style="color:#ccddee; margin:10px 0">Edge Surf - Édition Temporelle</p>
-        <button id="startButton" class="btn">🌊 START</button>
-    </div>
-</div>
+    <div id="krakenWarning" class="kraken-alert hidden">⚠️ LE KRAKEN EST PROCHE ! UTILISE LES ROCHERS !</div>
 
-<!-- MENU PRINCIPAL -->
-<div id="menuScreen" class="screen hidden">
-    <div class="card">
-        <h2>🏝️ MENU SURF</h2>
-        <button id="playButton" class="btn">▶ JOUER</button>
-        <button id="helpButtonMenu" class="btn btn-secondary">❓ AIDE</button>
-        <button id="customButtonMenu" class="btn btn-secondary">🎨 PERSONNALISATION</button>
-    </div>
-</div>
-
-<!-- ÉCRAN AIDE -->
-<div id="helpScreen" class="screen hidden">
-    <div class="card">
-        <h2>📖 COMMENT JOUER</h2>
-        <div style="text-align: left; color:#eef4ff;">
-            <p>🎮 <strong>Déplacements :</strong> ← → ↑ ↓ (flèches)</p>
-            <p>🌀 <strong>Boost :</strong> maintenir <kbd>Ctrl</kbd> ou <kbd>Shift</kbd></p>
-            <p>🌟 <strong>Objectif :</strong> Évite rochers & pieuvres.<br>⭐ = distance, ❤️ = vie.</p>
-            <p>⏱️ <strong>Événements chrono :</strong><br>
-            - Toutes les 10s : une pieuvre géante attaque !<br>
-            - À 30s : un requin lance des briques.<br>
-            - À 60s : un bateau tente de te renverser.</p>
+    <div class="hud hidden" id="hud">
+        <div class="hud-left">
+            <button id="pauseButton" class="hud-btn">⏸</button>
+            <div id="livesBox" class="hud-lives"></div>
         </div>
-        <button id="backFromHelp" class="btn btn-secondary">⬅ RETOUR MENU</button>
+        <div class="hud-score">🏁 <span id="distanceValue">0</span> m</div>
+        <div id="boostBox" class="hud-boosts"></div>
     </div>
-</div>
 
-<!-- ÉCRAN PERSONNALISATION -->
-<div id="customScreen" class="screen hidden">
-    <div class="card">
-        <h2>🎛️ PERSONNALISATION</h2>
-        <div class="options-group">
-            <div class="option-row">
-                <label>🌐 LANGUE :</label>
-                <select id="langSelect">
-                    <option value="fr">Français</option>
-                    <option value="en">English</option>
-                    <option value="de">Deutsch</option>
-                    <option value="es">Español</option>
+    <div id="overlayMenu" class="overlay">
+        <div class="overlay-box">
+            <h1 class="menu-title">🏄Let's Surf</h1>
+            <div class="best-score-tag">Record : <span id="bestScoreMenu">0</span> m</div>
+            <div class="button-stack">
+                <button id="btnPlay" class="btn-main">JOUER</button>
+                <button id="btnSettings" class="btn-sub">PERSONNALISER</button>
+                <button id="btnHelp" class="btn-sub">AIDE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlayHelp" class="overlay hidden">
+        <div class="overlay-box">
+            <h2>COMMANDES</h2>
+            <ul class="help-list">
+                <li>⬅️ ➡️ : Esquiver</li>
+                <li>⬇️ : BOOST (Consomme ⚡)</li>
+                <li>🅿️ : PAUSE</li>
+                <li>💡 : Fais percuter le Kraken contre un rocher pour qu'il s'enfuie !</li>
+            </ul>
+            <button class="btn-back">RETOUR</button>
+        </div>
+    </div>
+
+    <div id="overlaySettings" class="overlay hidden">
+        <div class="overlay-box">
+            <h2>OPTIONS</h2>
+            <div class="setting-item">
+                <label>Thème :</label>
+                <select id="selectTheme">
+                    <option value="day">Océan (Jour)</option>
+                    <option value="night">Abysses (Nuit)</option>
                 </select>
             </div>
-            <div class="option-row">
-                <label>🎨 COULEUR THÈME :</label>
-                <select id="colorSelect">
-                    <option value="noir">⚫ Noir / Ébène</option>
-                    <option value="jaune">🟡 Jaune Solaire</option>
-                    <option value="vert">🟢 Vert Océan</option>
-                    <option value="gris">⚪ Gris Argenté</option>
+            <div class="setting-item">
+                <label>Planche :</label>
+                <select id="selectBoard">
+                    <option value="#FFD700">Planche d'Or</option>
+                    <option value="#00d4ff">Azur</option>
+                    <option value="#333333">Carbone</option>
                 </select>
             </div>
-            <div class="option-row">
-                <label>🎵 MUSIQUE (fichier) :</label>
-                <input type="file" id="musicFile" accept="audio/*">
-            </div>
-            <div class="option-row">
-                <button id="applyCustomBtn" class="btn">✅ APPLIQUER</button>
-                <button id="stopMusicBtn" class="btn-secondary">🔇 Couper musique</button>
+            <button class="btn-back">SAUVEGARDER</button>
+        </div>
+    </div>
+
+    <div id="overlayPause" class="overlay hidden">
+        <div class="overlay-box">
+            <h2 class="menu-title">PAUSE</h2>
+            <div class="button-stack">
+                <button id="btnResume" class="btn-main">CONTINUER</button>
+                <button id="btnRestartPause" class="btn-sub">REJOUER</button>
+                <button id="btnToMenuPause" class="btn-sub">MENU PRINCIPAL</button>
             </div>
         </div>
-        <button id="backFromCustom" class="btn btn-secondary">⬅ RETOUR MENU</button>
+    </div>
+
+    <div id="overlayGameOver" class="overlay hidden">
+        <div class="overlay-box">
+            <h2 id="deathReason">WIPEOUT !</h2>
+            <p>Score : <span id="finalDist">0</span> m</p>
+            <p class="record-msg hidden" id="newRecordMsg">✨ NOUVEAU RECORD ! ✨</p>
+            <div class="button-stack">
+                <button id="btnRestart">REESSAYER</button>
+                <button id="btnToMenu" class="btn-sub">RETOUR AU MENU</button>
+            </div>
+        </div>
     </div>
 </div>
 
-<!-- ZONE DE JEU -->
-<div id="gameWrapper" style="display: none;">
-    <div class="game-container">
-        <canvas id="gameCanvas" width="1000" height="600"></canvas>
-        <div class="info-panel">
-            <div class="score-box"><span id="distLabel">🏄 DISTANCE</span> <span id="distanceValue">0</span><span> m</span></div>
-            <div class="score-box"><span id="livesLabel">❤️ VIES</span> <span id="livesValue">3</span></div>
-            <div class="speed-box"><span id="speedLabel">🌊 VITESSE</span> <span id="speedValue">3</span></div>
-            <div class="score-box"><span>⏱️ TEMPS</span> <span id="timerValue">0</span><span> s</span></div>
-            <button id="restartButton">🏄‍♂️ NOUVELLE VAGUE</button>
-            <button id="menuButton" class="btn-secondary">📋 MENU</button>
-        </div>
-        <div class="controls-hint" id="controlsHint">🎮 ← → ↑ ↓ | 🌀 Ctrl/Shift Boost | ⭐❤️ bonus | ⏰ Événements chrono</div>
-    </div>
-</div>
+<audio id="bgMusic" loop>
+    <source src="votre-musique.mp3" type="audio/mpeg">
+</audio>
 
-<script src="jeu.js" defer></script>
+<script src="jeu.js"></script>
 </body>
 </html>
