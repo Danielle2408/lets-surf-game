@@ -70,12 +70,88 @@
         const distanceSpan = document.getElementById('distanceValue');
         const scoreSpan = document.getElementById('scoreValue');
         const livesSpan = document.getElementById('livesValue');
+        const distanceLabelSpan = document.getElementById('distanceLabel');
+        const scoreLabelSpan = document.getElementById('scoreLabel');
+        const livesLabelSpan = document.getElementById('livesLabel');
+        const controlsHintEl = document.querySelector('.controls-hint');
         
         const translations = {
-            fr: { pause: '⏸️ PAUSE', resume: '▶️ REPRENDRE' },
-            en: { pause: '⏸️ PAUSE', resume: '▶️ RESUME' }
+            fr: {
+                pause: '⏸️ PAUSE',
+                resume: '▶️ REPRENDRE',
+                distanceLabel: '🏄 DISTANCE : ',
+                scoreLabel: '⭐ SCORE : ',
+                livesLabel: '❤️ VIES : ',
+                restartBtn: '🔄 NOUVELLE VAGUE',
+                startBtn: '🏄‍♂️ DÉMARRER LA VAGUE 🏄‍♂️',
+                personalizationBtn: '⚙️ PERSONNALISATION',
+                modalTitle: 'Personnalisation',
+                langLabel: 'Langue :',
+                musicLabel: 'Musique :',
+                saveBtn: 'Sauvegarder',
+                closeBtn: 'Fermer',
+                controlsHint: '🎮 ← → ↑ ↓ pour se déplacer | 🌟 Évite REQUINS, ROCHERS & TORTUES | ⭐ ÉTOILES +10 | ❤️ CŒUR +1 VIE | 🐙 KRAKEN (5s)',
+                gameOver: '💀 GAME OVER',
+                gameOverDistance: 'Distance : ',
+                gameOverScore: 'Score : ',
+                gameOverRecord: '🏆 Record : ',
+                gameOverRestart: 'Clique sur NOUVELLE VAGUE',
+                pauseTitle: '⏸ PAUSE',
+                pauseHint: 'Appuie sur P ou bouton pour reprendre',
+                controlsKeys: '← → ↑ ↓',
+                controlsPause: 'P = Pause',
+                record: '🏆 RECORD : ',
+            },
+            en: {
+                pause: '⏸️ PAUSE',
+                resume: '▶️ RESUME',
+                distanceLabel: '🏄 DISTANCE: ',
+                scoreLabel: '⭐ SCORE: ',
+                livesLabel: '❤️ LIVES: ',
+                restartBtn: '🔄 NEW WAVE',
+                startBtn: '🏄‍♂️ START THE WAVE 🏄‍♂️',
+                personalizationBtn: '⚙️ SETTINGS',
+                modalTitle: 'Settings',
+                langLabel: 'Language:',
+                musicLabel: 'Music:',
+                saveBtn: 'Save',
+                closeBtn: 'Close',
+                controlsHint: '🎮 ← → ↑ ↓ to move | 🌟 Avoid SHARKS, ROCKS & TURTLES | ⭐ STARS +10 | ❤️ HEART +1 LIFE | 🐙 KRAKEN (5s)',
+                gameOver: '💀 GAME OVER',
+                gameOverDistance: 'Distance: ',
+                gameOverScore: 'Score: ',
+                gameOverRecord: '🏆 Record: ',
+                gameOverRestart: 'Click NEW WAVE to restart',
+                pauseTitle: '⏸ PAUSE',
+                pauseHint: 'Press P or button to resume',
+                controlsKeys: '← → ↑ ↓',
+                controlsPause: 'P = Pause',
+                record: '🏆 RECORD: ',
+            }
         };
         
+        function applyTranslations() {
+            const t = translations[currentLang] || translations['fr'];
+            if (distanceLabelSpan) distanceLabelSpan.textContent = t.distanceLabel;
+            if (scoreLabelSpan) scoreLabelSpan.textContent = t.scoreLabel;
+            if (livesLabelSpan) livesLabelSpan.textContent = t.livesLabel;
+            if (restartBtn) restartBtn.textContent = t.restartBtn;
+            if (pauseBtn) pauseBtn.textContent = paused ? t.resume : t.pause;
+            if (controlsHintEl) controlsHintEl.textContent = t.controlsHint;
+            const startBtnEl = document.getElementById('start-btn');
+            if (startBtnEl) startBtnEl.textContent = t.startBtn;
+            if (personalizationBtn) personalizationBtn.textContent = t.personalizationBtn;
+            const modalTitle = document.querySelector('#personalization-modal h2');
+            if (modalTitle) modalTitle.textContent = t.modalTitle;
+            const modalLabels = document.querySelectorAll('#personalization-modal label');
+            if (modalLabels[0]) modalLabels[0].textContent = t.langLabel;
+            if (modalLabels[1]) modalLabels[1].textContent = t.musicLabel;
+            if (saveBtn) saveBtn.textContent = t.saveBtn;
+            if (closeModal) closeModal.textContent = t.closeBtn;
+            const htmlEl = document.querySelector('html');
+            if (htmlEl) htmlEl.lang = currentLang;
+        }
+
         function updateUI() {
             if (distanceSpan) distanceSpan.innerText = Math.floor(distance);
             if (scoreSpan) scoreSpan.innerText = score;
@@ -285,7 +361,7 @@
             }
         }
         
-        // ---------- DESSINS ----------
+        
         function drawSea() {
             const gradSky = ctx.createLinearGradient(0, 0, 0, H * 0.6);
             gradSky.addColorStop(0, '#0b5e7e');
@@ -509,35 +585,35 @@
         }
         
         function drawGameOver() {
-            // Overlay semi-transparent
+            const t = translations[currentLang] || translations['fr'];
             ctx.fillStyle = 'rgba(0,0,0,0.85)';
             ctx.fillRect(0, 0, W, H);
-            // Fenêtre game over (style carte)
             ctx.fillStyle = '#1E2F3A';
             ctx.shadowBlur = 10;
             ctx.fillRect(W/2 - 200, H/2 - 150, 400, 280);
             ctx.fillStyle = '#FFC857';
             ctx.font = 'bold 36px "Segoe UI"';
-            ctx.fillText("💀 GAME OVER", W/2 - 130, H/2 - 80);
+            ctx.fillText(t.gameOver, W/2 - 130, H/2 - 80);
             ctx.font = '24px monospace';
             ctx.fillStyle = 'white';
-            ctx.fillText("Distance: " + Math.floor(distance) + " m", W/2 - 100, H/2 - 20);
-            ctx.fillText("Score: " + score, W/2 - 60, H/2 + 30);
-            ctx.fillText("🏆 Record: " + highScore, W/2 - 90, H/2 + 80);
+            ctx.fillText(t.gameOverDistance + Math.floor(distance) + " m", W/2 - 100, H/2 - 20);
+            ctx.fillText(t.gameOverScore + score, W/2 - 60, H/2 + 30);
+            ctx.fillText(t.gameOverRecord + highScore, W/2 - 90, H/2 + 80);
             ctx.font = '18px sans-serif';
             ctx.fillStyle = '#DDD';
-            ctx.fillText("Clique sur NOUVELLE VAGUE", W/2 - 120, H/2 + 140);
+            ctx.fillText(t.gameOverRestart, W/2 - 120, H/2 + 140);
             ctx.shadowBlur = 0;
         }
         
         function drawPauseOverlay() {
+            const t = translations[currentLang] || translations['fr'];
             ctx.fillStyle = 'rgba(0,0,0,0.7)';
             ctx.fillRect(0, 0, W, H);
             ctx.font = 'bold 46px "Segoe UI"';
             ctx.fillStyle = '#FFF';
-            ctx.fillText("⏸ PAUSE", W/2 - 90, H/2);
+            ctx.fillText(t.pauseTitle, W/2 - 90, H/2);
             ctx.font = '22px monospace';
-            ctx.fillText("Appuie sur P ou bouton pour reprendre", W/2 - 210, H/2 + 70);
+            ctx.fillText(t.pauseHint, W/2 - 210, H/2 + 70);
         }
         
         function draw() {
@@ -553,15 +629,16 @@
             drawSurfer(surfer.x, surfer.y, SURFER_W, SURFER_H);
             drawParticles();
             
+            const t = translations[currentLang] || translations['fr'];
             ctx.font = 'bold 18px monospace';
             ctx.fillStyle = '#FFF8E7';
-            ctx.fillText("🏆 RECORD: " + highScore, W - 190, 45);
+            ctx.fillText(t.record + highScore, W - 190, 45);
             ctx.font = 'italic 15px sans-serif';
             ctx.fillStyle = '#C1E4FF';
-            ctx.fillText("← → ↑ ↓", 25, 55);
-            ctx.fillText("P = Pause", 25, 85);
+            ctx.fillText(t.controlsKeys, 25, 55);
+            ctx.fillText(t.controlsPause, 25, 85);
             
-            // Affichage du game over si le jeu est terminé
+           
             if (!gameRunning) {
                 drawGameOver();
             }
@@ -669,6 +746,7 @@
                 if (musicSelect) currentMusic = musicSelect.value;
                 localStorage.setItem('surfLang', currentLang);
                 localStorage.setItem('surfMusic', currentMusic);
+                applyTranslations();
                 const music1 = document.getElementById('music1');
                 const music2 = document.getElementById('music2');
                 if (music1) music1.pause();
@@ -700,6 +778,7 @@
         if (musicSelect) musicSelect.value = savedMusic;
         currentLang = savedLang;
         currentMusic = savedMusic;
+        applyTranslations();
         if (currentMusic !== 'none') {
             const musicElem = document.getElementById(currentMusic);
             if (musicElem) musicElem.play().catch(e => console.log('Audio error', e));
