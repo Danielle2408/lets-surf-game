@@ -185,7 +185,7 @@
             addParticles(surfer.x + SURFER_W/2, surfer.y + SURFER_H/2, '#FF4444', 20);
             if (lives <= 0) {
                 gameRunning = false;
-                paused = false; // s'assurer que la pause n'est pas active
+                paused = false; 
             } else {
                 surfer.x = W/2 - SURFER_W/2;
                 surfer.y = H - 100;
@@ -361,7 +361,7 @@
             }
         }
         
-        
+
         function drawSea() {
             const gradSky = ctx.createLinearGradient(0, 0, 0, H * 0.6);
             gradSky.addColorStop(0, '#0b5e7e');
