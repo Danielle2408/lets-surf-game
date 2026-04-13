@@ -9,13 +9,14 @@
     let lives = 3, boosts = 3, invincibility = 0;
     
     let highScore = parseInt(localStorage.getItem('letsSurfRecord')) || 0;
-    let currentBoardColor = '#FFD700', currentTheme = 'day';
+    let currentBoardColor = localStorage.getItem('letsSurfColor') || '#FFD700';
 
     const sprites = {};
     let objects = [];
     const trail = [];
     const kraken = { active: false, x: 0, dist: 0, speed: 1.4 };
 
+    // --- INITIALISATION DES DESSINS ---
     function createSprites() {
         const draw = (w, h, fn) => {
             const c = document.createElement('canvas');
@@ -24,39 +25,27 @@
             return c;
         };
 
-        // Textures des obstacles
         sprites.rock = draw(60, 60, g => {
             g.fillStyle = '#444'; g.beginPath(); g.moveTo(10,55); g.lineTo(30,5); g.lineTo(55,55); g.fill();
-            g.fillStyle = '#666'; g.beginPath(); g.moveTo(30,5); g.lineTo(55,55); g.lineTo(35,55); g.fill();
-            g.strokeStyle = '#222'; g.strokeRect(25,25,2,15);
         });
-
         sprites.log = draw(85, 35, g => {
             g.fillStyle = '#5D4037'; g.fillRect(5, 8, 75, 20);
-            g.strokeStyle = '#3E2723'; g.strokeRect(20, 12, 40, 1);
         });
-
         sprites.island = draw(180, 180, g => {
             g.fillStyle = '#F0E68C'; g.beginPath(); g.arc(90, 110, 80, 0, 7); g.fill();
-            g.fillStyle = '#795548'; g.fillRect(85, 45, 12, 50);
-            g.fillStyle = '#2E7D32'; for(let a=0; a<5; a++) { g.save(); g.translate(91, 50); g.rotate(a*1.2); g.beginPath(); g.ellipse(20, 0, 25, 8, 0, 0, 7); g.fill(); g.restore(); }
+            g.fillStyle = '#2E7D32'; g.fillRect(85, 45, 12, 50);
         });
-
         sprites.surfer = () => draw(45, 85, g => {
             g.fillStyle = currentBoardColor; g.beginPath(); g.ellipse(20, 45, 12, 35, 0, 0, 7); g.fill();
             g.fillStyle = '#e0ac69'; g.beginPath(); g.arc(20, 25, 7, 0, 7); g.fill();
             g.fillStyle = '#333'; g.fillRect(12, 35, 16, 12);
         });
-
         sprites.heart = draw(40, 40, g => { g.fillStyle = '#ff3333'; g.beginPath(); g.arc(12,15,10,0,7); g.arc(28,15,10,0,7); g.lineTo(20,38); g.fill(); });
         sprites.boost = draw(40, 40, g => { g.fillStyle = '#FFEB3B'; g.beginPath(); g.moveTo(25,2); g.lineTo(10,22); g.lineTo(22,22); g.lineTo(15,38); g.lineTo(35,15); g.fill(); });
-        
         sprites.kraken = draw(220, 220, g => {
             g.fillStyle = '#4A148C'; g.beginPath(); g.arc(110, 110, 85, 0, 7); g.fill();
             g.fillStyle = 'white'; g.beginPath(); g.arc(80, 90, 20, 0, 7); g.arc(140, 90, 20, 0, 7); g.fill();
             g.fillStyle = 'black'; g.beginPath(); g.arc(80, 90, 9, 0, 7); g.arc(140, 90, 9, 0, 7); g.fill();
-            g.strokeStyle = '#4A148C'; g.lineWidth = 15;
-            for(let i=0; i<8; i++) { g.beginPath(); g.moveTo(110,110); g.lineTo(110+Math.cos(i)*100, 210); g.stroke(); }
         });
     }
 
@@ -70,19 +59,28 @@
         requestAnimationFrame(loop);
     }
 
-    function updateUI() {
-        document.getElementById('bestScoreMenu').textContent = highScore;
-        document.getElementById('distanceValue').textContent = score;
-        document.getElementById('livesBox').innerHTML = '❤️'.repeat(lives);
-        document.getElementById('boostBox').innerHTML = '⚡'.repeat(boosts);
-    }
-
     function setupEvents() {
         document.getElementById('btnPlay').onclick = startGame;
         document.getElementById('btnRestart').onclick = startGame;
         document.getElementById('btnRestartPause').onclick = startGame;
         document.getElementById('pauseButton').onclick = togglePause;
         document.getElementById('btnResume').onclick = togglePause;
+        
+        // Gestion des menus
+        document.getElementById('btnSettings').onclick = () => showOverlay('overlaySettings');
+        document.getElementById('btnHelp').onclick = () => showOverlay('overlayHelp');
+        document.getElementById('btnBackMenu').onclick = () => showOverlay('overlayMenu');
+        document.getElementById('btnBackFromHelp').onclick = () => showOverlay('overlayMenu');
+
+        document.querySelectorAll('.color-opt').forEach(opt => {
+            opt.onclick = () => {
+                currentBoardColor = opt.dataset.color;
+                localStorage.setItem('letsSurfColor', currentBoardColor);
+                document.querySelectorAll('.color-opt').forEach(o => o.classList.remove('active'));
+                opt.classList.add('active');
+            };
+        });
+
         document.getElementById('btnToMenuPause').onclick = () => { gameRunning = false; showOverlay('overlayMenu'); };
         document.getElementById('btnToMenu').onclick = () => showOverlay('overlayMenu');
 
@@ -118,7 +116,6 @@
     }
 
     function spawn() {
-        // Fréquence d'obstacles : frame % 25 (beaucoup d'obstacles)
         if (frame % 25 === 0) {
             let r = Math.random(), type = 'rock', col = 25;
             if (r > 0.88) { type = 'island'; col = 75; }
@@ -128,10 +125,8 @@
             objects.push({ x: Math.random() * W, wy: worldY + H, type: type, colRadius: col });
         }
         
-        // Apparition du Kraken
         if (!kraken.active && frame > 600 && Math.random() < 0.003) {
             kraken.active = true; 
-            // Positionnement pour qu'il apparaisse juste à la limite haute de l'écran
             kraken.dist = (H * 0.35) + 150;
             kraken.x = surferX;
             document.getElementById('krakenWarning').classList.remove('hidden');
@@ -150,21 +145,13 @@
             if (kraken.active) {
                 kraken.dist -= (kraken.speed + (score/5000));
                 kraken.x += (surferX - kraken.x) * 0.04;
-                
                 let ky = (H * 0.35) - kraken.dist;
-                
-                // --- LOGIQUE DE COLLISION DU KRAKEN ---
                 objects.forEach(o => {
-                    // TOUS les obstacles (sauf cœurs et boosts) éliminent le Kraken
                     if (o.type !== 'heart' && o.type !== 'boost') {
                         let oy = H * 0.35 + (o.wy - worldY);
-                        // Rayon de collision généreux pour le Kraken (65px)
-                        if (Math.hypot(kraken.x - o.x, ky - oy) < o.colRadius + 65) {
-                            kraken.active = false;
-                        }
+                        if (Math.hypot(kraken.x - o.x, ky - oy) < o.colRadius + 65) kraken.active = false;
                     }
                 });
-
                 if (kraken.active && kraken.dist < 35) endGame("LE KRAKEN VOUS A ATTRAPÉ !");
             }
 
@@ -191,32 +178,32 @@
         requestAnimationFrame(loop);
     }
 
+    function updateUI() {
+        document.getElementById('bestScoreMenu').textContent = highScore;
+        document.getElementById('distanceValue').textContent = score;
+        document.getElementById('livesBox').innerHTML = '❤️'.repeat(lives);
+        document.getElementById('boostBox').innerHTML = '⚡'.repeat(boosts);
+    }
+
     function endGame(reason) {
         gameRunning = false;
         document.getElementById('deathReason').textContent = reason;
         document.getElementById('finalDist').textContent = score;
-        if (score > highScore) { highScore = score; localStorage.setItem('letsSurfRecord', highScore); document.getElementById('newRecordMsg').classList.remove('hidden'); }
+        if (score > highScore) { highScore = score; localStorage.setItem('letsSurfRecord', highScore); }
         showOverlay('overlayGameOver');
     }
 
     function draw() {
-        ctx.fillStyle = currentTheme === 'day' ? '#1aafe8' : '#0a1a2f';
+        ctx.fillStyle = '#1aafe8';
         ctx.fillRect(0, 0, W, H);
-        
         ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 5; ctx.beginPath();
         trail.forEach((p, i) => { let sy = H * 0.35 + (p.wy - worldY); if (i === 0) ctx.moveTo(p.x, sy); else ctx.lineTo(p.x, sy); });
         ctx.stroke();
-
-        objects.forEach(o => { 
-            let sy = H * 0.35 + (o.wy - worldY); 
-            ctx.drawImage(sprites[o.type], o.x - sprites[o.type].width/2, sy - sprites[o.type].height/2); 
-        });
-        
+        objects.forEach(o => { let sy = H * 0.35 + (o.wy - worldY); ctx.drawImage(sprites[o.type], o.x - sprites[o.type].width/2, sy - sprites[o.type].height/2); });
         if (kraken.active) {
             let ky = (H * 0.35) - kraken.dist;
             ctx.drawImage(sprites.kraken, kraken.x - 110, ky - 110);
         }
-        
         ctx.save(); ctx.translate(surferX, H * 0.35); ctx.rotate(surferAngle);
         if (invincibility % 10 < 5) ctx.drawImage(sprites.surfer(), -22, -42);
         ctx.restore();

@@ -29,3 +29,39 @@ button:active{transform: translateY(2px);}
 .best-score-tag{background:#ffd700; padding:8px 20px; border-radius:30px; font-weight:bold; margin-bottom:25px; display:inline-block;}
 .record-msg{color:#ffcc00; font-weight:bold; animation: bounce 0.4s infinite alternate; margin: 10px 0;}
 @keyframes bounce { from { transform: scale(1); } to { transform: scale(1.1); } }
+/* ... (garder le début identique) ... */
+.color-picker {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin: 20px 0;
+}
+.color-opt {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 3px solid #eee;
+    transition: 0.2s;
+}
+.color-opt:hover { transform: scale(1.2); }
+.color-opt.active { border-color: #0e7fb5; box-shadow: 0 0 10px rgba(14,127,181,0.5); }
+
+.button-stack{display:flex; flex-direction:column; gap:12px; width:100%;}
+button{padding:16px; font-size:1.1rem; cursor:pointer; border:none; border-radius:12px; font-weight:bold; transition: 0.1s;}
+button:active{transform: translateY(2px);}
+.btn-main{background:#ffcc00; color:#333; box-shadow: 0 4px 0 #d4aa00;}
+.btn-sub{background:#f0faff; color:#0e7fb5;}
+/* ... */
+/* ... (Gardez le CSS précédent et ajoutez ceci) ... */
+.help-content {
+    text-align: left;
+    line-height: 1.6;
+    color: #444;
+    font-size: 0.95rem;
+    background: #f9f9f9;
+    padding: 15px;
+    border-radius: 12px;
+}
+.help-content p { margin-bottom: 8px; }
+.help-content strong { color: #b40000; }

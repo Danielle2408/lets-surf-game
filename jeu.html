@@ -33,6 +33,40 @@
         </div>
     </div>
 
+    <div id="overlayHelp" class="overlay hidden">
+        <div class="overlay-box">
+            <h2 class="menu-title">COMMENT JOUER</h2>
+            <div class="help-content">
+                <p>⬅️ ➡️ : Diriger le surfeur</p>
+                <p>⬇️ : Utiliser un Boost (Éclair)</p>
+                <p>🅿️ : Pause</p>
+                <hr style="margin:10px 0; border:0; border-top:1px solid #eee">
+                <p><strong>Astuce Kraken :</strong></p>
+                <p>S'il vous poursuit, frôlez un rocher ou un tronc pour qu'il le percute et s'enfuie !</p>
+            </div>
+            <div class="button-stack" style="margin-top:20px">
+                <button id="btnBackFromHelp" class="btn-main">COMPRIS !</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlaySettings" class="overlay hidden">
+        <div class="overlay-box">
+            <h2 class="menu-title">STYLE</h2>
+            <p>Couleur de la planche :</p>
+            <div class="color-picker">
+                <div class="color-opt" style="background:#FFD700" data-color="#FFD700"></div>
+                <div class="color-opt" style="background:#ff3333" data-color="#ff3333"></div>
+                <div class="color-opt" style="background:#33ff57" data-color="#33ff57"></div>
+                <div class="color-opt" style="background:#ff33e9" data-color="#ff33e9"></div>
+                <div class="color-opt" style="background:#ffffff" data-color="#ffffff"></div>
+            </div>
+            <div class="button-stack" style="margin-top:20px">
+                <button id="btnBackMenu" class="btn-main">RETOUR</button>
+            </div>
+        </div>
+    </div>
+
     <div id="overlayPause" class="overlay hidden">
         <div class="overlay-box">
             <h2 class="menu-title">PAUSE</h2>
@@ -48,7 +82,6 @@
         <div class="overlay-box">
             <h2 id="deathReason">WIPEOUT !</h2>
             <p>Score : <span id="finalDist">0</span> m</p>
-            <p class="record-msg hidden" id="newRecordMsg">✨ NOUVEAU RECORD ! ✨</p>
             <div class="button-stack">
                 <button id="btnRestart">REESSAYER</button>
                 <button id="btnToMenu" class="btn-sub">RETOUR AU MENU</button>
