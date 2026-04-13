@@ -1,6 +1,6 @@
 
 (function() {
-    // ---------- TRADUCTIONS ----------
+    //  fonction TRADUCTIONS 
     const translations = {
         fr: {
             distance: "🏄 DISTANCE", lives: "❤️ VIES", speed: "🌊 VITESSE",
@@ -50,7 +50,7 @@
         window.surfboardColor = color;
     }
 
-    // ---------- MUSIQUE ----------
+    // musique
     let audioElement = null;
     function loadMusic(file) {
         if (audioElement) { audioElement.pause(); audioElement = null; }
@@ -63,7 +63,7 @@
     }
     function stopMusic() { if (audioElement) { audioElement.pause(); audioElement = null; } }
 
-    // ---------- VARIABLES JEU ----------
+    // VARIABLES JEU 
     let gameRunning = true;
     let animationId = null;
     let gameInitialized = false;
