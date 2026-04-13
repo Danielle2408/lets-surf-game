@@ -8,15 +8,14 @@
     let surferX, surferAngle = 0;
     let lives = 3, boosts = 3, invincibility = 0;
     
-    // Sauvegarde & Personnalisation
-    let highScore = parseInt(localStorage.getItem('surfRoyaleHS')) || 0;
-    let currentBoardColor = '#FFD700';
-    let currentTheme = 'day';
+    let highScore = parseInt(localStorage.getItem('letsSurfRecord')) || 0;
+    let currentBoardColor = '#FFD700', currentTheme = 'day';
 
     const sprites = {};
     let objects = [];
     const trail = [];
-    const kraken = { active: false, x: 0, dist: 350, speed: 1.7 };
+    // Le Kraken est configuré pour descendre vers le surfeur
+    const kraken = { active: false, x: 0, dist: 0, speed: 1.5 };
 
     function createSprites() {
         const draw = (w, h, fn) => {
@@ -26,31 +25,26 @@
             return c;
         };
 
-        // ROCHER TEXTURÉ (Face éclairée et fissures)
+        // Textures des obstacles
         sprites.rock = draw(60, 60, g => {
             g.fillStyle = '#444'; g.beginPath(); g.moveTo(10,55); g.lineTo(30,5); g.lineTo(55,55); g.fill();
             g.fillStyle = '#666'; g.beginPath(); g.moveTo(30,5); g.lineTo(55,55); g.lineTo(35,55); g.fill();
-            g.strokeStyle = '#222'; g.lineWidth = 2; g.beginPath(); g.moveTo(25,25); g.lineTo(35,45); g.stroke();
+            g.strokeStyle = '#222'; g.beginPath(); g.moveTo(25,25); g.lineTo(35,45); g.stroke();
         });
 
-        // TRONC AVEC NŒUDS
         sprites.log = draw(85, 35, g => {
             g.fillStyle = '#5D4037'; g.fillRect(5, 8, 75, 20);
-            g.strokeStyle = '#3E2723'; g.lineWidth = 1;
-            for(let i=0; i<3; i++) { g.beginPath(); g.moveTo(10, 12+i*6); g.lineTo(70, 12+i*6); g.stroke(); }
-            g.fillStyle = '#3E2723'; g.beginPath(); g.arc(40, 18, 4, 0, 7); g.fill();
+            g.strokeStyle = '#3E2723'; g.beginPath(); g.moveTo(10,15); g.lineTo(70,15); g.stroke();
         });
 
-        // ÎLE DÉTAILLÉE
         sprites.island = draw(180, 180, g => {
             g.fillStyle = '#F0E68C'; g.beginPath(); g.arc(90, 110, 80, 0, 7); g.fill();
             g.fillStyle = '#D4C66A'; for(let i=0; i<30; i++) g.fillRect(Math.random()*140+20, Math.random()*80+70, 3, 3);
-            g.fillStyle = '#795548'; g.fillRect(85, 45, 12, 50); // Tronc palmier
+            g.fillStyle = '#795548'; g.fillRect(85, 45, 12, 50);
             g.fillStyle = '#2E7D32'; for(let a=0; a<5; a++) { g.save(); g.translate(91, 50); g.rotate(a*1.2); g.beginPath(); g.ellipse(20, 0, 25, 8, 0, 0, 7); g.fill(); g.restore(); }
         });
 
         sprites.surfer = () => draw(45, 85, g => {
-            g.fillStyle = 'rgba(0,0,0,0.15)'; g.beginPath(); g.ellipse(22, 55, 15, 35, 0, 0, 7); g.fill();
             g.fillStyle = currentBoardColor; g.beginPath(); g.ellipse(20, 45, 12, 35, 0, 0, 7); g.fill();
             g.fillStyle = '#e0ac69'; g.beginPath(); g.arc(20, 25, 7, 0, 7); g.fill();
             g.fillStyle = '#333'; g.fillRect(12, 35, 16, 12);
@@ -58,10 +52,14 @@
 
         sprites.heart = draw(40, 40, g => { g.fillStyle = '#ff3333'; g.beginPath(); g.arc(12,15,10,0,7); g.arc(28,15,10,0,7); g.lineTo(20,38); g.fill(); });
         sprites.boost = draw(40, 40, g => { g.fillStyle = '#FFEB3B'; g.beginPath(); g.moveTo(25,2); g.lineTo(10,22); g.lineTo(22,22); g.lineTo(15,38); g.lineTo(35,15); g.fill(); });
+        
         sprites.kraken = draw(200, 200, g => {
-            g.fillStyle = '#4A148C'; g.beginPath(); g.arc(100, 100, 75, 0, 7); g.fill();
+            g.fillStyle = '#4A148C'; g.beginPath(); g.arc(100, 100, 80, 0, 7); g.fill();
             g.fillStyle = 'white'; g.beginPath(); g.arc(70, 80, 18, 0, 7); g.arc(130, 80, 18, 0, 7); g.fill();
             g.fillStyle = 'black'; g.beginPath(); g.arc(70, 80, 8, 0, 7); g.arc(130, 80, 8, 0, 7); g.fill();
+            // Tentacules
+            g.strokeStyle = '#4A148C'; g.lineWidth = 15;
+            for(let i=0; i<8; i++) { g.beginPath(); g.moveTo(100,100); g.quadraticCurveTo(100+Math.cos(i)*120, 180, 100+Math.cos(i)*100, 200); g.stroke(); }
         });
     }
 
@@ -88,15 +86,8 @@
         document.getElementById('btnRestartPause').onclick = startGame;
         document.getElementById('pauseButton').onclick = togglePause;
         document.getElementById('btnResume').onclick = togglePause;
-        
-        document.getElementById('btnHelp').onclick = () => showOverlay('overlayHelp');
-        document.getElementById('btnSettings').onclick = () => showOverlay('overlaySettings');
-        document.querySelectorAll('.btn-back').forEach(b => b.onclick = () => showOverlay('overlayMenu'));
-        document.getElementById('btnToMenu').onclick = () => showOverlay('overlayMenu');
         document.getElementById('btnToMenuPause').onclick = () => { gameRunning = false; showOverlay('overlayMenu'); };
-
-        document.getElementById('selectBoard').onchange = (e) => { currentBoardColor = e.target.value; createSprites(); };
-        document.getElementById('selectTheme').onchange = (e) => { currentTheme = e.target.value; };
+        document.getElementById('btnToMenu').onclick = () => showOverlay('overlayMenu');
 
         window.onkeydown = (e) => {
             if (e.code === 'ArrowLeft') surferAngle = -0.75;
@@ -117,65 +108,71 @@
         gameRunning = true; gamePaused = false; kraken.active = false;
         showOverlay('none');
         document.getElementById('hud').classList.remove('hidden');
-        const m = document.getElementById('bgMusic'); if(m) m.play().catch(()=>{});
     }
 
     function togglePause() {
         if (!gameRunning) return;
         gamePaused = !gamePaused;
         showOverlay(gamePaused ? 'overlayPause' : 'none');
-        const m = document.getElementById('bgMusic'); if(m) gamePaused ? m.pause() : m.play();
     }
 
     function useBoost() {
-        if (boosts > 0 && gameRunning && !gamePaused) { boosts--; worldY += 600; invincibility = 80; }
+        if (boosts > 0 && gameRunning && !gamePaused) { boosts--; worldY += 750; invincibility = 80; }
     }
 
     function spawn() {
-        if (frame % 45 === 0) {
+        // Beaucoup d'obstacles (fréquence élevée)
+        if (frame % 25 === 0) {
             let r = Math.random(), type = 'rock', col = 25;
-            if (r > 0.9) { type = 'island'; col = 75; }
-            else if (r > 0.65) { type = 'log'; col = 35; }
+            if (r > 0.88) { type = 'island'; col = 75; }
+            else if (r > 0.55) { type = 'log'; col = 35; }
             let b = Math.random();
-            if (b < 0.02) type = 'heart'; else if (b < 0.08) type = 'boost';
+            if (b < 0.02) type = 'heart'; else if (b < 0.07) type = 'boost';
             objects.push({ x: Math.random() * W, wy: worldY + H, type: type, colRadius: col });
         }
-        if (!kraken.active && frame > 600 && Math.random() < 0.0015) {
-            kraken.active = true; kraken.dist = 350; kraken.x = surferX;
+        
+        // Apparition du Kraken
+        if (!kraken.active && frame > 600 && Math.random() < 0.003) {
+            kraken.active = true; 
+            // FIX : On calcule la distance pour qu'il apparaisse juste en haut du canvas
+            // Le surfeur est à H * 0.35. Pour qu'il soit au bord haut (0), la distance doit être H*0.35.
+            // On ajoute 100 pour qu'il soit légèrement "caché" au début.
+            kraken.dist = (H * 0.35) + 100;
+            kraken.x = surferX;
             document.getElementById('krakenWarning').classList.remove('hidden');
-            setTimeout(() => document.getElementById('krakenWarning').classList.add('hidden'), 3000);
+            setTimeout(() => document.getElementById('krakenWarning').classList.add('hidden'), 3500);
         }
     }
 
     function loop() {
         if (gameRunning && !gamePaused) {
             frame++;
-            let speed = 6.5 + (worldY / 15000);
+            let speed = 7.5 + (worldY / 12000);
             worldY += Math.cos(surferAngle) * speed;
             surferX += Math.sin(surferAngle) * speed * 1.8;
             surferX = Math.max(25, Math.min(W - 25, surferX));
 
             if (kraken.active) {
-                kraken.dist -= (kraken.speed + (score/4000));
-                kraken.x += (surferX - kraken.x) * 0.035;
+                // Le Kraken se rapproche (réduit la distance)
+                kraken.dist -= (kraken.speed + (score/5000));
+                kraken.x += (surferX - kraken.x) * 0.04;
                 
-                // Collision Kraken vs Obstacles (Destruction du Kraken)
                 let ky = (H * 0.35) - kraken.dist;
                 objects.forEach(o => {
-                    if (o.type === 'rock' || o.type === 'log' || o.type === 'island') {
+                    if (['rock', 'log', 'island'].includes(o.type)) {
                         let oy = H * 0.35 + (o.wy - worldY);
-                        if (Math.hypot(kraken.x - o.x, ky - oy) < o.colRadius + 60) kraken.active = false;
+                        // Si le Kraken touche un obstacle, il fuit
+                        if (Math.hypot(kraken.x - o.x, ky - oy) < o.colRadius + 65) kraken.active = false;
                     }
                 });
-
-                if (kraken.active && kraken.dist < 30) endGame("LE KRAKEN VOUS A DÉVORÉ !");
+                if (kraken.active && kraken.dist < 35) endGame("LE KRAKEN VOUS A DÉVORÉ !");
             }
 
             spawn();
 
             for (let i = objects.length - 1; i >= 0; i--) {
                 let o = objects[i], sy = H * 0.35 + (o.wy - worldY);
-                if (sy < -200) { objects.splice(i, 1); continue; }
+                if (sy < -300) { objects.splice(i, 1); continue; }
                 if (Math.hypot(surferX - o.x, H * 0.35 - sy) < o.colRadius + 15) {
                     if (o.type === 'heart') { lives = Math.min(5, lives+1); objects.splice(i, 1); }
                     else if (o.type === 'boost') { boosts = Math.min(5, boosts+1); objects.splice(i, 1); }
@@ -198,19 +195,32 @@
         gameRunning = false;
         document.getElementById('deathReason').textContent = reason;
         document.getElementById('finalDist').textContent = score;
-        if (score > highScore) { highScore = score; localStorage.setItem('surfRoyaleHS', highScore); document.getElementById('newRecordMsg').classList.remove('hidden'); }
-        else document.getElementById('newRecordMsg').classList.add('hidden');
+        if (score > highScore) { highScore = score; localStorage.setItem('letsSurfRecord', highScore); document.getElementById('newRecordMsg').classList.remove('hidden'); }
         showOverlay('overlayGameOver');
     }
 
     function draw() {
         ctx.fillStyle = currentTheme === 'day' ? '#1aafe8' : '#0a1a2f';
         ctx.fillRect(0, 0, W, H);
-        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 4; ctx.beginPath();
+        
+        // Sillage du surfeur
+        ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.lineWidth = 5; ctx.beginPath();
         trail.forEach((p, i) => { let sy = H * 0.35 + (p.wy - worldY); if (i === 0) ctx.moveTo(p.x, sy); else ctx.lineTo(p.x, sy); });
         ctx.stroke();
-        objects.forEach(o => { let sy = H * 0.35 + (o.wy - worldY); ctx.drawImage(sprites[o.type], o.x - sprites[o.type].width/2, sy - sprites[o.type].height/2); });
-        if (kraken.active) ctx.drawImage(sprites.kraken, kraken.x - 100, (H * 0.35 - kraken.dist) - 100);
+
+        // Dessin des objets
+        objects.forEach(o => { 
+            let sy = H * 0.35 + (o.wy - worldY); 
+            ctx.drawImage(sprites[o.type], o.x - sprites[o.type].width/2, sy - sprites[o.type].height/2); 
+        });
+        
+        // Dessin du Kraken
+        if (kraken.active) {
+            let ky = (H * 0.35) - kraken.dist;
+            ctx.drawImage(sprites.kraken, kraken.x - 100, ky - 100);
+        }
+        
+        // Dessin du Surfeur
         ctx.save(); ctx.translate(surferX, H * 0.35); ctx.rotate(surferAngle);
         if (invincibility % 10 < 5) ctx.drawImage(sprites.surfer(), -22, -42);
         ctx.restore();
